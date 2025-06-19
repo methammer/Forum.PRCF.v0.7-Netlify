@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Edit, Save, XCircle, UserCircle, Mail, CalendarDays, ShieldCheck, Info, Settings, Activity } from 'lucide-react';
+import { Loader2, Edit, Save, XCircle, UserCircle, Mail, CalendarDays, ShieldCheck, Info, Settings, Activity, MessageSquare, PlusCircle, Edit3, ListChecks } from 'lucide-react';
 import { useEffect, useState, FormEvent } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Profile } from '@/contexts/UserContext';
@@ -19,10 +19,26 @@ interface ProfileFormData {
   signature: string;
 }
 
+interface ActivityItem {
+  id: string;
+  type: 'new_post' | 'new_thread' | 'profile_update' | 'task_completed';
+  description: string;
+  timestamp: string; // For simplicity, using string like "2 hours ago" or a formatted date
+  icon: React.ElementType;
+  link?: string; // Optional link to the content
+}
+
+const mockActivities: ActivityItem[] = [
+  { id: '1', type: 'new_post', description: "A posté une réponse dans le sujet 'Discussions Générales'", timestamp: 'Il y a 2 heures', icon: MessageSquare, link: '#' },
+  { id: '2', type: 'new_thread', description: "A créé un nouveau sujet : 'Idées de fonctionnalités'", timestamp: 'Il y a 1 jour', icon: PlusCircle, link: '#' },
+  { id: '3', type: 'profile_update', description: 'A mis à jour sa biographie', timestamp: 'Il y a 3 jours', icon: Edit3 },
+  { id: '4', type: 'task_completed', description: "A complété la tâche 'Vérifier les nouveaux messages'", timestamp: 'Il y a 5 jours', icon: ListChecks },
+];
+
 const ProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { profile: currentUserProfile, isLoadingAuth: isLoadingCurrentUserAuth, authUser, session } = useAuth();
+  const { profile: currentUserProfile, isLoadingAuth: isLoadingCurrentUserAuth, authUser } = useAuth();
   
   const [profileData, setProfileData] = useState<Profile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -52,7 +68,6 @@ const ProfilePage = () => {
         setProfileData(null);
       } else {
         setProfileData(data as Profile);
-        // Initialize form data if this is the current user's profile being fetched
         if (data && authUser?.id === data.id) {
           setFormData({
             full_name: data.full_name || '',
@@ -75,11 +90,10 @@ const ProfilePage = () => {
     if (!userId) {
       setError("ID d'utilisateur manquant.");
       setIsLoadingProfile(false);
-      navigate('/404'); // Or some other appropriate action
+      navigate('/404');
       return;
     }
 
-    // If viewing own profile and current user's profile is loaded from context, use it
     if (userId === authUser?.id && currentUserProfile) {
       setProfileData(currentUserProfile);
       setFormData({
@@ -90,7 +104,6 @@ const ProfilePage = () => {
       });
       setIsLoadingProfile(false);
     } else {
-      // Otherwise, fetch the profile for the given userId
       fetchProfile(userId);
     }
   }, [userId, authUser?.id, currentUserProfile, navigate]);
@@ -102,8 +115,7 @@ const ProfilePage = () => {
   };
 
   const handleEditToggle = () => {
-    if (isEditing) { // If cancelling edit
-      // Reset form data to profile data
+    if (isEditing) {
       if (profileData) {
         setFormData({
           full_name: profileData.full_name || '',
@@ -137,16 +149,11 @@ const ProfilePage = () => {
         throw updateError;
       }
       
-      // Update local profileData state immediately for responsiveness
       setProfileData(prev => prev ? { ...prev, ...updates } : null);
-      // Also update currentUserProfile in context if possible, or trigger a refetch
-      // For simplicity, we'll rely on next context fetch or page reload for full sync
-      // Or, more directly:
-      if (currentUserProfile && currentUserProfile.id === authUser.id) {
-         // This is tricky because useAuth doesn't provide a setter for profile
-         // A full refetch of the profile might be better or a global state management solution
-         // For now, local state update is fine, context will catch up on next load/event
-      }
+      // Consider a way to update UserContext's profile state here if needed
+      // e.g., by calling a function passed from UserContext or re-fetching auth user's profile.
+      // For now, this local update and a toast notification will suffice.
+      // The UserContext will eventually update on next full load or specific trigger.
 
       toast.success('Profil mis à jour avec succès!');
       setIsEditing(false);
@@ -305,18 +312,36 @@ const ProfilePage = () => {
           )}
           
           <div className="mt-8 pt-6 border-t dark:border-gray-700">
-            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center"><Activity className="w-6 h-6 mr-2 text-purple-500" />Activité Récente</h3>
-            <div className="p-4 bg-gray-50 dark:bg-gray-750 rounded-lg text-center">
-              <p className="text-gray-500 dark:text-gray-400 italic">L'affichage de l'activité récente sera bientôt disponible.</p>
-              {/* Placeholder for activity items */}
-            </div>
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center"><Activity className="w-6 h-6 mr-2 text-purple-500" />Activité Récente</h3>
+            {mockActivities.length > 0 ? (
+              <ul className="space-y-4">
+                {mockActivities.map((activity) => (
+                  <li key={activity.id} className="flex items-start p-4 bg-gray-50 dark:bg-gray-750 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <activity.icon className="w-6 h-6 mr-4 text-purple-500 dark:text-purple-400 flex-shrink-0 mt-1" />
+                    <div className="flex-grow">
+                      <p className="text-sm text-gray-700 dark:text-gray-200">
+                        {activity.link ? (
+                          <a href={activity.link} className="hover:underline font-medium">{activity.description}</a>
+                        ) : (
+                          activity.description
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{activity.timestamp}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-4 bg-gray-50 dark:bg-gray-750 rounded-lg text-center">
+                <p className="text-gray-500 dark:text-gray-400 italic">Aucune activité récente à afficher.</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-8 pt-6 border-t dark:border-gray-700">
             <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center"><Settings className="w-6 h-6 mr-2 text-orange-500" />Préférences du Compte</h3>
             <div className="p-4 bg-gray-50 dark:bg-gray-750 rounded-lg text-center">
               <p className="text-gray-500 dark:text-gray-400 italic">La gestion des préférences du compte sera bientôt disponible.</p>
-              {/* Placeholder for preference settings */}
             </div>
           </div>
 
