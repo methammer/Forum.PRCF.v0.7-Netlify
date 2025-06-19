@@ -69,7 +69,7 @@ import { useUser, Profile } from '@/contexts/UserContext';
         }
 
         // SUPER_ADMIN can do almost anything (exceptions might be self-destructive actions not coded here)
-        if (role === 'super_admin') {
+        if (role === 'SUPER_ADMIN') { // Corrected to uppercase
             // Example: SUPER_ADMIN cannot directly delete their own account via 'delete_user_account' action if resource targets self
             if (action === 'delete_user_account' && resource?.type === 'profile' && resource.profileId === userId) {
                 return false; // Prevent self-delete through this generic check
@@ -85,27 +85,27 @@ import { useUser, Profile } from '@/contexts/UserContext';
             return resource?.type === 'profile' && resource.profileId === userId;
 
           case 'view_any_user_profile_basic': // Mod view
-            return role === 'moderator' && resource?.type === 'profile' && resource.targetRole === 'user';
+            return role === 'MODERATOR' && resource?.type === 'profile' && resource.targetRole === 'USER'; // Corrected to uppercase
           case 'view_any_user_profile_full': // Admin view
-            return role === 'admin' && resource?.type === 'profile' && (resource.targetRole === 'user' || resource.targetRole === 'moderator');
+            return role === 'ADMIN' && resource?.type === 'profile' && (resource.targetRole === 'USER' || resource.targetRole === 'MODERATOR'); // Corrected to uppercase
 
           case 'edit_user_status': // Mod can edit USER status, Admin can edit USER/MODERATOR status
             if (resource?.type === 'profile' && resource.targetRole) {
-              if (role === 'admin' && (resource.targetRole === 'user' || resource.targetRole === 'moderator')) return true;
-              if (role === 'moderator' && resource.targetRole === 'user') return true;
+              if (role === 'ADMIN' && (resource.targetRole === 'USER' || resource.targetRole === 'MODERATOR')) return true; // Corrected to uppercase
+              if (role === 'MODERATOR' && resource.targetRole === 'USER') return true; // Corrected to uppercase
             }
             return false;
 
           case 'edit_user_role': // Admin can edit USER/MODERATOR roles
-            return role === 'admin' && resource?.type === 'profile' &&
-                   resource.targetRole !== 'admin' && resource.targetRole !== 'super_admin';
+            return role === 'ADMIN' && resource?.type === 'profile' && // Corrected to uppercase
+                   resource.targetRole !== 'ADMIN' && resource.targetRole !== 'SUPER_ADMIN';
 
           case 'create_user_account':
-            return role === 'admin'; // SUPER_ADMIN handled by global true
+            return role === 'ADMIN'; // Corrected to uppercase (SUPER_ADMIN handled by global true)
 
           case 'delete_user_account':
-            if (role === 'admin' && resource?.type === 'profile' && resource.profileId !== userId &&
-                (resource.targetRole === 'user' || resource.targetRole === 'moderator')) {
+            if (role === 'ADMIN' && resource?.type === 'profile' && resource.profileId !== userId && // Corrected to uppercase
+                (resource.targetRole === 'USER' || resource.targetRole === 'MODERATOR')) {
               return true;
             }
             return false; // SUPER_ADMIN handled by global true, USER self-delete needs specific logic
@@ -113,15 +113,15 @@ import { useUser, Profile } from '@/contexts/UserContext';
           // Content Creation
           case 'create_post':
           case 'create_topic':
-            return ['user', 'moderator', 'admin'].includes(role || ''); // SUPER_ADMIN is true
+            return ['USER', 'MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase, SUPER_ADMIN is true
 
           // Own Content Management
           case 'edit_own_post':
           case 'delete_own_post':
-            return resource?.type === 'post' && resource.authorId === userId && ['user', 'moderator', 'admin'].includes(role || '');
+            return resource?.type === 'post' && resource.authorId === userId && ['USER', 'MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase
           case 'edit_own_topic':
           case 'delete_own_topic':
-            return resource?.type === 'topic' && resource.authorId === userId && ['user', 'moderator', 'admin'].includes(role || '');
+            return resource?.type === 'topic' && resource.authorId === userId && ['USER', 'MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase
 
           // Any Content Management (Mod/Admin)
           case 'edit_any_post':
@@ -129,7 +129,7 @@ import { useUser, Profile } from '@/contexts/UserContext';
           case 'approve_post':
           case 'move_post':
           case 'pin_post_in_topic':
-            return ['moderator', 'admin'].includes(role || ''); // SUPER_ADMIN is true
+            return ['MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase, SUPER_ADMIN is true
 
           case 'edit_any_topic':
           case 'delete_any_topic':
@@ -137,14 +137,14 @@ import { useUser, Profile } from '@/contexts/UserContext';
           case 'move_topic':
           case 'pin_topic_in_section':
           case 'lock_topic':
-            return ['moderator', 'admin'].includes(role || ''); // SUPER_ADMIN is true
+            return ['MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase, SUPER_ADMIN is true
 
           // Section Management
           case 'create_section':
           case 'edit_section':
           case 'delete_section':
           case 'reorder_sections':
-            return role === 'admin'; // SUPER_ADMIN is true
+            return role === 'ADMIN'; // Corrected to uppercase, SUPER_ADMIN is true
 
           case 'read_sections':
           case 'read_topics':
@@ -153,13 +153,13 @@ import { useUser, Profile } from '@/contexts/UserContext';
 
           // Admin Area Access
           case 'access_moderation_tools':
-            return ['moderator', 'admin'].includes(role || '');
+            return ['MODERATOR', 'ADMIN'].includes(role || ''); // Corrected to uppercase
           case 'access_user_management':
           case 'access_admin_dashboard':
-            return role === 'admin';
+            return role === 'ADMIN'; // Corrected to uppercase
           case 'access_site_configuration':
           case 'view_audit_logs':
-            return role === 'admin'; // SUPER_ADMIN is true
+            return role === 'ADMIN'; // Corrected to uppercase, SUPER_ADMIN is true
 
           default:
             return false;
