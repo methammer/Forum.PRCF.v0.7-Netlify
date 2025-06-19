@@ -10,6 +10,9 @@ export interface Profile {
   avatar_url: string | null;
   status: 'pending_approval' | 'approved' | 'rejected' | null;
   role: 'USER' | 'ADMIN' | 'MODERATOR' | 'SUPER_ADMIN' | null; // Changed to uppercase
+  biography?: string | null; // Added
+  signature?: string | null; // Added
+  created_at?: string; // For "Member since"
 }
 
 interface UserContextType {
@@ -38,7 +41,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     
     const queryPromise = supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, status, role')
+      .select('id, username, full_name, avatar_url, status, role, biography, signature, created_at') // Added biography, signature, created_at
       .eq('id', userId)
       .single();
 
@@ -69,8 +72,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const validRoles: Array<Profile['role']> = ['USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN', null];
       if (typeof data.status === 'undefined' || typeof data.role === 'undefined' || !validRoles.includes(data.role as Profile['role'])) {
         console.warn(`[UserProvider] fetchProfile: Profile data for user ID ${userId} is incomplete or role is invalid. Data:`, data);
-        // Optionally, you could default the role or handle this more gracefully
-        // For now, returning null if role is not as expected to highlight issues.
         if (!validRoles.includes(data.role as Profile['role'])) {
             console.error(`[UserProvider] fetchProfile: Invalid role "${data.role}" received for user ${userId}. Expected one of ${validRoles.join(', ')}.`);
         }
@@ -91,7 +92,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect 1: Setup onAuthStateChange listener
   useEffect(() => {
-    // No need to set isLoadingAuth here, SessionProcessingEffect will manage it based on lastAuthEvent
     console.log('[UserProvider] AuthListenerEffect: Setting up onAuthStateChange listener.');
     let isActive = true;
 
@@ -113,23 +113,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       authListener?.subscription.unsubscribe();
       console.log('[UserProvider] AuthListenerEffect: Cleaned up auth listener.');
     };
-  }, []); // Empty dependency array: runs once on mount
+  }, []);
 
   // Effect 2: Process session changes (fetch profile if needed)
   useEffect(() => {
     const processSessionChange = async () => {
-      // If lastAuthEvent is null, it means onAuthStateChange hasn't fired its first event.
-      // In this case, we are still loading, so keep isLoadingAuth true.
       if (lastAuthEvent === null) {
         console.log('[UserProvider] SessionProcessingEffect: lastAuthEvent is null, initial auth state not yet determined. isLoadingAuth remains true.');
-        setIsLoadingAuth(true); // Explicitly ensure it's true
+        setIsLoadingAuth(true);
         return;
       }
 
       if (!session?.user) {
         console.log(`[UserProvider] SessionProcessingEffect: No user in session (lastAuthEvent: ${lastAuthEvent}). Clearing profile.`);
         setProfile(null);
-        setIsLoadingAuth(false); // Auth check complete, no user.
+        setIsLoadingAuth(false);
         return;
       }
 
@@ -166,7 +164,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       console.error('[UserProvider] Error signing out:', error);
     }
-    // onAuthStateChange will trigger SessionProcessingEffect to clear profile and set loading states.
   };
 
   const value = {
