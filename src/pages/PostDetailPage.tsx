@@ -159,7 +159,6 @@ const PostDetailPage = () => {
 
       if (error) throw error;
 
-      // Transform the returned data to match the Reply interface structure
       const newReplyData: Reply = {
         reply_id: data.id,
         reply_content: data.content,
@@ -278,41 +277,6 @@ const PostDetailPage = () => {
       <div className="mt-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">Réponses ({replies.length})</h2>
         
-        {/* Add Reply Form */}
-        {currentUser && (
-          <Card className="mb-6 dark:bg-gray-800/70">
-            <CardHeader>
-              <CardTitle className="text-lg">Ajouter une réponse</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={newReplyContent}
-                onChange={(e) => setNewReplyContent(e.target.value)}
-                placeholder="Écrivez votre réponse ici..."
-                className="min-h-[100px] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmittingReply}
-              />
-              <Button 
-                onClick={handleAddReply} 
-                disabled={isSubmittingReply || !newReplyContent.trim()}
-                className="mt-4 w-full sm:w-auto"
-              >
-                {isSubmittingReply ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Envoyer la réponse
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-        {!currentUser && (
-           <Card className="mb-6 bg-yellow-50 border-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-700">
-            <CardContent className="p-6 text-center">
-              <p className="text-yellow-700 dark:text-yellow-300">
-                <Link to="/connexion" className="font-semibold underline hover:text-yellow-800 dark:hover:text-yellow-200">Connectez-vous</Link> ou <Link to="/inscription" className="font-semibold underline hover:text-yellow-800 dark:hover:text-yellow-200">inscrivez-vous</Link> pour ajouter une réponse.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Display Replies */}
         {repliesLoading && (
           <div className="flex justify-center items-center py-8">
@@ -321,7 +285,7 @@ const PostDetailPage = () => {
           </div>
         )}
         {repliesError && (
-          <Card className="bg-red-50 border-red-500 dark:bg-red-900/30 dark:border-red-700">
+          <Card className="bg-red-50 border-red-500 dark:bg-red-900/30 dark:border-red-700 mb-6">
             <CardHeader>
               <div className="flex items-center text-red-600 dark:text-red-400">
                 <AlertTriangle className="h-5 w-5 mr-2" />
@@ -334,14 +298,14 @@ const PostDetailPage = () => {
           </Card>
         )}
         {!repliesLoading && !repliesError && replies.length === 0 && (
-          <div className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
+          <div className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center mb-6">
             <MessageSquare className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" />
             <p className="text-gray-600 dark:text-gray-300">Aucune réponse pour le moment.</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Soyez le premier à répondre !</p>
           </div>
         )}
         {!repliesLoading && !repliesError && replies.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-6 mb-8"> {/* Added mb-8 here for spacing before add reply form */}
             {replies.map((reply) => (
               <Card key={reply.reply_id} className="dark:bg-gray-800/70">
                 <CardHeader className="flex flex-row items-start space-x-4 p-4 border-b dark:border-gray-700">
@@ -369,6 +333,41 @@ const PostDetailPage = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Add Reply Form - MOVED HERE */}
+        {currentUser && (
+          <Card className="dark:bg-gray-800/70">
+            <CardHeader>
+              <CardTitle className="text-lg">Ajouter une réponse</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={newReplyContent}
+                onChange={(e) => setNewReplyContent(e.target.value)}
+                placeholder="Écrivez votre réponse ici..."
+                className="min-h-[100px] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                disabled={isSubmittingReply}
+              />
+              <Button 
+                onClick={handleAddReply} 
+                disabled={isSubmittingReply || !newReplyContent.trim()}
+                className="mt-4 w-full sm:w-auto"
+              >
+                {isSubmittingReply ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Envoyer la réponse
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        {!currentUser && (
+           <Card className="bg-yellow-50 border-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-700">
+            <CardContent className="p-6 text-center">
+              <p className="text-yellow-700 dark:text-yellow-300">
+                <Link to="/connexion" className="font-semibold underline hover:text-yellow-800 dark:hover:text-yellow-200">Connectez-vous</Link> ou <Link to="/inscription" className="font-semibold underline hover:text-yellow-800 dark:hover:text-yellow-200">inscrivez-vous</Link> pour ajouter une réponse.
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
