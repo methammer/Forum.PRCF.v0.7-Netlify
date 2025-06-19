@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog"; // Added Dialog components
-import { FolderPlus, ListOrdered, Edit3, Trash2, PlusCircle, Loader2, AlertTriangle, CheckCircle, Save } from "lucide-react"; // Added Save icon
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { FolderPlus, ListOrdered, Edit3, Trash2, PlusCircle, Loader2, AlertTriangle, CheckCircle, Save, ShieldAlert } from "lucide-react"; // Added ShieldAlert
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -39,6 +39,11 @@ const SectionManagementPage = () => {
   const [editingCategory, setEditingCategory] = useState<ForumCategory | null>(null);
   const [editFormState, setEditFormState] = useState<EditFormState>({ name: '', description: '' });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // State for deleting sections
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<ForumCategory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   useEffect(() => {
@@ -165,6 +170,53 @@ const SectionManagementPage = () => {
       });
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const openDeleteModal = (category: ForumCategory) => {
+    if (!can('delete_section')) {
+      toast({ title: "Accès refusé", description: "Vous n'avez pas la permission de supprimer cette section.", variant: "destructive" });
+      return;
+    }
+    setDeletingCategory(category);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteSection = async () => {
+    if (!deletingCategory) return;
+
+    if (!can('delete_section')) {
+      toast({ title: "Accès refusé", description: "Vous n'avez pas la permission de supprimer cette section.", variant: "destructive" });
+      setIsDeleteModalOpen(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error: deleteError } = await supabase
+        .from('forum_categories')
+        .delete()
+        .eq('id', deletingCategory.id);
+
+      if (deleteError) throw deleteError;
+
+      fetchCategories();
+      setIsDeleteModalOpen(false);
+      setDeletingCategory(null);
+      toast({
+        title: "Succès",
+        description: `La section "${deletingCategory.name}" a été supprimée.`,
+        className: "bg-red-500 text-white dark:bg-red-700",
+      });
+    } catch (err: any) {
+      console.error("Error deleting section:", err);
+      toast({
+        title: "Erreur de suppression",
+        description: err.message || "Impossible de supprimer la section. Vérifiez s'il y a des sujets ou des messages associés.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -297,7 +349,7 @@ const SectionManagementPage = () => {
                       </Button>
                     )}
                     {can('delete_section') && (
-                      <Button variant="destructive" size="sm" onClick={() => {/* TODO: Implement Delete */ alert('Fonctionnalité de suppression à implémenter.')}}>
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteModal(category)}>
                         <Trash2 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Supprimer</span>
                       </Button>
                     )}
@@ -349,6 +401,42 @@ const SectionManagementPage = () => {
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Section Confirmation Modal */}
+      {deletingCategory && (
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="sm:max-w-md dark:bg-gray-800">
+            <DialogHeader>
+              <DialogTitle className="text-red-600 dark:text-red-400 flex items-center">
+                <ShieldAlert className="h-6 w-6 mr-2" />
+                Confirmer la Suppression
+              </DialogTitle>
+              <DialogDescription className="dark:text-gray-400 pt-2">
+                Êtes-vous sûr de vouloir supprimer la section "{deletingCategory.name}" ?
+                <br />
+                Cette action est irréversible. Tous les sujets et messages associés pourraient être affectés ou orphelins.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="outline" className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
+                  Annuler
+                </Button>
+              </DialogClose>
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleDeleteSection} 
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white"
+              >
+                {isDeleting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Trash2 className="mr-2 h-5 w-5" />}
+                Supprimer Définitivement
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
