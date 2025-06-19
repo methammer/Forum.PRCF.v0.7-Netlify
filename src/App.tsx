@@ -13,7 +13,8 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import ModerationPage from './pages/admin/ModerationPage';
 import SectionManagementPage from './pages/admin/SectionManagementPage';
-import CategoryPostsPage from './pages/CategoryPostsPage'; // New import
+import CategoryPostsPage from './pages/CategoryPostsPage';
+import CreatePostPage from './pages/CreatePostPage'; // New import
 import { Toaster } from "@/components/ui/toaster";
 
 function App() {
@@ -29,7 +30,8 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/forum" element={<ForumPage />} />
-            <Route path="/forum/categorie/:categorySlug" element={<CategoryPostsPage />} /> {/* New route */}
+            <Route path="/forum/categorie/:categorySlug" element={<CategoryPostsPage />} />
+            <Route path="/forum/nouveau-sujet/:categorySlug" element={<CreatePostPage />} /> {/* New route */}
             <Route path="/profil/:userId" element={<ProfilePage />} />
             <Route path="/parametre" element={<SettingsPage />} />
             {/* <Route path="/forum/sujet/:postId" element={<PostDetailPage />} /> */}

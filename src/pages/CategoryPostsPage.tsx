@@ -14,7 +14,6 @@ interface ForumCategory {
   slug: string;
 }
 
-// This interface now matches the structure returned by the RPC function (after transformation)
 interface ForumPost {
   id: string;
   title: string;
@@ -25,7 +24,6 @@ interface ForumPost {
   } | null;
 }
 
-// Interface for the raw data from RPC
 interface RpcPostData {
   post_id: string;
   post_title: string;
@@ -53,7 +51,6 @@ const CategoryPostsPage = () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch category details (remains the same)
         const { data: categoryData, error: categoryError } = await supabase
           .from('forum_categories')
           .select('*')
@@ -64,7 +61,6 @@ const CategoryPostsPage = () => {
         if (!categoryData) throw new Error("Catégorie non trouvée.");
         setCategory(categoryData);
 
-        // Fetch posts using the RPC function
         const { data: rpcData, error: rpcError } = await supabase
           .rpc('get_category_posts_with_author', { p_category_slug: categorySlug });
 
@@ -73,7 +69,6 @@ const CategoryPostsPage = () => {
           throw rpcError;
         }
         
-        // Transform RPC data to match the ForumPost[] structure
         const transformedPosts: ForumPost[] = (rpcData as RpcPostData[] || []).map(p => ({
           id: p.post_id,
           title: p.post_title,
@@ -95,8 +90,9 @@ const CategoryPostsPage = () => {
   }, [categorySlug]);
 
   const handleCreatePost = () => {
-    // TODO: Navigate to create post page, passing categoryId or categorySlug
-    alert(`TODO: Implémenter la création de post pour la catégorie: ${category?.name}`);
+    if (categorySlug) {
+      navigate(`/forum/nouveau-sujet/${categorySlug}`);
+    }
   };
 
   if (loading) {
