@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { FolderPlus, ListOrdered, Edit3, Trash2, PlusCircle, Loader2, AlertTriangle, CheckCircle, Save, ShieldAlert } from "lucide-react"; // Added ShieldAlert
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { FolderPlus, ListOrdered, Edit3, Trash2, PlusCircle, Loader2, AlertTriangle, Save, ShieldAlert, Lock, Unlock } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -15,11 +17,13 @@ interface ForumCategory {
   description: string | null;
   slug: string;
   created_at: string;
+  is_locked_for_users: boolean;
 }
 
 interface EditFormState {
   name: string;
   description: string;
+  is_locked_for_users: boolean;
 }
 
 const SectionManagementPage = () => {
@@ -34,17 +38,14 @@ const SectionManagementPage = () => {
   const [newSectionDescription, setNewSectionDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State for editing sections
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ForumCategory | null>(null);
-  const [editFormState, setEditFormState] = useState<EditFormState>({ name: '', description: '' });
+  const [editFormState, setEditFormState] = useState<EditFormState>({ name: '', description: '', is_locked_for_users: false });
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // State for deleting sections
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<ForumCategory | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
 
   useEffect(() => {
     fetchCategories();
@@ -56,7 +57,7 @@ const SectionManagementPage = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('forum_categories')
-        .select('*')
+        .select('*') 
         .order('name', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -123,7 +124,11 @@ const SectionManagementPage = () => {
       return;
     }
     setEditingCategory(category);
-    setEditFormState({ name: category.name, description: category.description || '' });
+    setEditFormState({ 
+      name: category.name, 
+      description: category.description || '',
+      is_locked_for_users: category.is_locked_for_users 
+    });
     setIsEditModalOpen(true);
   };
 
@@ -144,7 +149,11 @@ const SectionManagementPage = () => {
     try {
       const { data, error: updateError } = await supabase
         .from('forum_categories')
-        .update({ name: editFormState.name, description: editFormState.description || null })
+        .update({ 
+          name: editFormState.name, 
+          description: editFormState.description || null,
+          is_locked_for_users: editFormState.is_locked_for_users
+        })
         .eq('id', editingCategory.id)
         .select()
         .single();
@@ -338,7 +347,14 @@ const SectionManagementPage = () => {
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/30 rounded-md shadow-sm hover:shadow-lg transition-shadow duration-200"
                 >
                   <div className="mb-2 sm:mb-0 flex-grow">
-                    <h3 className="font-semibold text-gray-800 dark:text-white">{category.name}</h3>
+                    <div className="flex items-center">
+                      <h3 className="font-semibold text-gray-800 dark:text-white">{category.name}</h3>
+                      {category.is_locked_for_users ? (
+                        <Lock className="ml-2 h-4 w-4 text-yellow-500" titleAccess="Verrouillée pour les utilisateurs"/>
+                      ) : (
+                        <Unlock className="ml-2 h-4 w-4 text-green-500" titleAccess="Ouverte"/>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">SLUG: /{category.slug}</p>
                     {category.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{category.description}</p>}
                   </div>
@@ -368,7 +384,7 @@ const SectionManagementPage = () => {
             <DialogHeader>
               <DialogTitle className="text-gray-800 dark:text-white">Modifier la Section</DialogTitle>
               <DialogDescription className="dark:text-gray-400">
-                Mettez à jour le nom et la description de la section "{editingCategory.name}".
+                Mettez à jour les détails de la section "{editingCategory.name}".
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleUpdateSection} className="space-y-4 py-4">
@@ -391,6 +407,20 @@ const SectionManagementPage = () => {
                   onChange={(e) => setEditFormState(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch 
+                  id="isLockedForUsers" 
+                  checked={editFormState.is_locked_for_users}
+                  onCheckedChange={(checked) => setEditFormState(prev => ({ ...prev, is_locked_for_users: checked }))}
+                  className="data-[state=checked]:bg-yellow-500"
+                />
+                <Label htmlFor="isLockedForUsers" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Verrouiller pour les utilisateurs ?
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                Si coché, seuls les modérateurs et administrateurs pourront créer des sujets. Les utilisateurs pourront toujours lire et répondre.
+              </p>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button type="button" variant="outline" className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">Annuler</Button>
