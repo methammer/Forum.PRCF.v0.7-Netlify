@@ -14,7 +14,8 @@ import UserManagementPage from './pages/admin/UserManagementPage';
 import ModerationPage from './pages/admin/ModerationPage';
 import SectionManagementPage from './pages/admin/SectionManagementPage';
 import CategoryPostsPage from './pages/CategoryPostsPage';
-import CreatePostPage from './pages/CreatePostPage'; // New import
+import CreatePostPage from './pages/CreatePostPage';
+import PostDetailPage from './pages/PostDetailPage'; // New import
 import { Toaster } from "@/components/ui/toaster";
 
 function App() {
@@ -31,10 +32,10 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/forum" element={<ForumPage />} />
             <Route path="/forum/categorie/:categorySlug" element={<CategoryPostsPage />} />
-            <Route path="/forum/nouveau-sujet/:categorySlug" element={<CreatePostPage />} /> {/* New route */}
+            <Route path="/forum/nouveau-sujet/:categorySlug" element={<CreatePostPage />} />
+            <Route path="/forum/sujet/:postId" element={<PostDetailPage />} /> {/* New route */}
             <Route path="/profil/:userId" element={<ProfilePage />} />
             <Route path="/parametre" element={<SettingsPage />} />
-            {/* <Route path="/forum/sujet/:postId" element={<PostDetailPage />} /> */}
           </Route>
         </Route>
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useToast } from "@/hooks/use-toast"; // Corrected import path
+import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Send, AlertTriangle } from 'lucide-react';
 
 interface ForumCategory {
@@ -113,15 +113,15 @@ const CreatePostPage = () => {
         .single();
 
       if (postError) throw postError;
+      if (!postData || !postData.id) throw new Error("La création du sujet a échoué, ID manquant.");
+
 
       toast({
         title: "Succès !",
         description: "Votre sujet a été créé.",
         className: "bg-green-500 text-white dark:bg-green-700",
       });
-      // TODO: Navigate to the new post detail page: `/forum/sujet/${postData.id}`
-      // For now, navigate back to the category page
-      navigate(`/forum/categorie/${category.slug}`);
+      navigate(`/forum/sujet/${postData.id}`); // Navigate to the new post detail page
     } catch (err: any) {
       console.error("Error creating post:", err);
       setError(err.message || "Une erreur est survenue lors de la création du sujet.");

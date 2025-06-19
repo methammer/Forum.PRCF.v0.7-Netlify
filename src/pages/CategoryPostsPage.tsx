@@ -14,7 +14,7 @@ interface ForumCategory {
   slug: string;
 }
 
-interface ForumPost {
+interface ForumPostEntry { // Renamed from ForumPost to avoid confusion with detailed post type
   id: string;
   title: string;
   created_at: string;
@@ -36,7 +36,7 @@ const CategoryPostsPage = () => {
   const { categorySlug } = useParams<{ categorySlug: string }>();
   const navigate = useNavigate();
   const [category, setCategory] = useState<ForumCategory | null>(null);
-  const [posts, setPosts] = useState<ForumPost[]>([]);
+  const [posts, setPosts] = useState<ForumPostEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +69,7 @@ const CategoryPostsPage = () => {
           throw rpcError;
         }
         
-        const transformedPosts: ForumPost[] = (rpcData as RpcPostData[] || []).map(p => ({
+        const transformedPosts: ForumPostEntry[] = (rpcData as RpcPostData[] || []).map(p => ({
           id: p.post_id,
           title: p.post_title,
           created_at: p.post_created_at,
@@ -176,8 +176,7 @@ const CategoryPostsPage = () => {
             <Card key={post.id} className="hover:shadow-lg transition-shadow duration-200 ease-in-out dark:bg-gray-800">
               <CardContent className="p-4 md:p-6">
                 <Link 
-                  // to={`/forum/sujet/${post.id}`} // TODO: Implement post detail page
-                  to="#" // Placeholder until post detail page is ready
+                  to={`/forum/sujet/${post.id}`} // Updated link to post detail page
                   className="block mb-1"
                 >
                   <h3 className="text-xl font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 transition-colors">
@@ -187,6 +186,7 @@ const CategoryPostsPage = () => {
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-3">
                   <div className="flex items-center">
                     <UserCircle className="h-4 w-4 mr-1" />
+                    {/* Consider linking to profile: <Link to={`/profil/${post.user_id}`}>{post.profiles?.username || 'Utilisateur inconnu'}</Link> */}
                     <span>{post.profiles?.username || 'Utilisateur inconnu'}</span>
                   </div>
                   <div className="flex items-center">
