@@ -1,4 +1,3 @@
-```sql
 /*
   # Fix Role Functions and RLS Dependencies for TEXT Roles (v2 - Add email cast)
 
@@ -234,5 +233,3 @@ CREATE POLICY "Admins/Mods can remove category members"
   FOR DELETE
   TO authenticated
   USING (public.get_current_user_role() IN ('ADMIN', 'SUPER_ADMIN', 'MODERATOR'));
-
-```

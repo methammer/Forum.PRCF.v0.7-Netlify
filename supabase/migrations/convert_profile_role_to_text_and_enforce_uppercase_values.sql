@@ -1,4 +1,3 @@
-```sql
 /*
   # Convert Profile Role to TEXT and Enforce Uppercase Values (v8)
 
@@ -150,4 +149,3 @@ CREATE POLICY "Allow users to read posts"
   Administrative changes to roles are done via the `update-user-details-admin` Edge Function.
   With `profiles.role` as TEXT and triggers re-enabled, this should function correctly.
 */
-    ```

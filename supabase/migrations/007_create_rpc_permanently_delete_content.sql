@@ -1,4 +1,3 @@
-```sql
     /*
       # RPC: Permanently Delete Content
 
@@ -82,4 +81,3 @@
     $$;
 
     COMMENT ON FUNCTION public.permanently_delete_content(TEXT, UUID) IS 'Permanently deletes a post or reply and its associated reports. SECURITY DEFINER. This action is irreversible.';
-    ```

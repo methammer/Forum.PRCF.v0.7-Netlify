@@ -1,4 +1,3 @@
-```sql
     /*
       # RPC: Get Soft-Deleted Content
 
@@ -74,4 +73,3 @@
     $$;
 
     COMMENT ON FUNCTION public.get_soft_deleted_content() IS 'Retrieves all soft-deleted posts and replies with relevant details. SECURITY INVOKER.';
-    ```

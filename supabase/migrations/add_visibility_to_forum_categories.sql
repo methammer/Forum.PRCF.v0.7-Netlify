@@ -1,4 +1,3 @@
-```sql
     /*
       # Ajout de la colonne visibility à forum_categories
 
@@ -34,4 +33,3 @@
     -- The existing policy "Allow authenticated users to read categories" remains,
     -- meaning all authenticated users can see all categories, but the content within
     -- will be filtered by the RLS on posts/replies using this new visibility column.
-    ```

@@ -1,4 +1,3 @@
-```sql
 /*
   # Fix Forum Posts RLS, Defaults, Visibility using Comprehensive Trigger-Based Validation
 
@@ -169,4 +168,3 @@ CREATE POLICY "Users can insert posts (validation via trigger)"
   FOR INSERT
   TO authenticated
   WITH CHECK (true); -- All substantive checks are now handled by the BEFORE INSERT trigger.
-    ```

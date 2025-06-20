@@ -1,4 +1,3 @@
-```sql
 /*
   # Refine Profile Update Permissions and RLS
 
@@ -86,4 +85,3 @@ ON public.profiles FOR UPDATE TO authenticated USING (
   - Changes to `full_name`, `username`, `avatar_url` etc., by users on their own profiles should still be allowed
     (assuming no other RLS policies or triggers prevent them for those specific fields).
 */
-    ```

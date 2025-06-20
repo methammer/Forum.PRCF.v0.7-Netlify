@@ -1,4 +1,3 @@
-```sql
     /*
       # Création des types énumérés pour la modération
 
@@ -27,5 +26,3 @@
       'RULES_VIOLATION',
       'OTHER'
     );
-
-    ```

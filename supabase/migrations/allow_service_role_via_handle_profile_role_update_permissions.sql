@@ -1,4 +1,3 @@
-```sql
 /*
   # Allow Service Role to Update Profile Roles via Trigger
 
@@ -62,4 +61,3 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-    ```

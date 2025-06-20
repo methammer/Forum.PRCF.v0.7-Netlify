@@ -1,4 +1,3 @@
-```sql
     /*
       # Création de la table forum_reports
 
@@ -76,4 +75,3 @@
       FOR SELECT
       TO authenticated
       USING (reporter_user_id = auth.uid());
-    ```

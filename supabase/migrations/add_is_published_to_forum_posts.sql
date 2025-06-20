@@ -1,4 +1,3 @@
-```sql
     /*
       # Ajout du statut de publication aux messages du forum
 
@@ -51,4 +50,3 @@
     -- (Les utilisateurs peuvent insérer/mettre à jour/supprimer leurs propres messages) ne référencent pas explicitement is_published.
     -- Cela signifie que les utilisateurs peuvent toujours gérer leurs propres messages quel que soit leur état de publication,
     -- ce qui est généralement acceptable. Les politiques plus complexes dans 003_... affineront considérablement l'accès en lecture.
-    ```

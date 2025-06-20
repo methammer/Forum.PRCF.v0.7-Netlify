@@ -1,4 +1,3 @@
-```sql
     /*
       # RPC: Restore Content
 
@@ -75,4 +74,3 @@
     $$;
 
     COMMENT ON FUNCTION public.restore_content(TEXT, UUID) IS 'Restores a soft-deleted post or reply. SECURITY DEFINER.';
-    ```

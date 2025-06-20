@@ -1,4 +1,3 @@
-```sql
 /*
   # Update Role Functions to Use TEXT Type
 
@@ -101,4 +100,3 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_all_user_details() TO authenticated;
-    ```
