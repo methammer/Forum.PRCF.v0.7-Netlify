@@ -1,4 +1,4 @@
-    import { useState } from 'react';
+import { useState } from 'react';
     import { supabase } from '@/lib/supabaseClient';
     import { Button } from '@/components/ui/button';
     import {
@@ -30,7 +30,8 @@
 
     const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, contentType, contentId }) => {
       const { toast } = useToast();
-      const { authUser } = useAuth();
+      // Correctly destructure 'session' from useAuth and alias it to 'authUser'
+      const { session: authUser } = useAuth(); 
       const [reasonCategory, setReasonCategory] = useState<ReportReasonCategory | ''>('');
       const [reasonDetails, setReasonDetails] = useState('');
       const [isSubmitting, setIsSubmitting] = useState(false);
