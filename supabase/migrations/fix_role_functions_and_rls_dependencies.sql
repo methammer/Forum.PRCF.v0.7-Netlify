@@ -1,11 +1,17 @@
 ```sql
 /*
-  # Fix Role Functions and RLS Dependencies for TEXT Roles
+  # Fix Role Functions and RLS Dependencies for TEXT Roles (v2 - Add email cast)
 
-  This migration addresses issues arising from changing `public.profiles.role` to TEXT.
+  This migration addresses issues arising from changing `public.profiles.role` to TEXT
+  and a type mismatch for the email column in `get_all_user_details`.
+
   The `get_current_user_role()` and `get_all_user_details()` functions need to be
-  updated to return/handle TEXT roles. This was previously blocked because numerous
+  updated to return/handle TEXT roles and ensure all returned columns match their
+  defined types. This was previously blocked because numerous
   RLS policies depended on `get_current_user_role()`.
+
+  Version 2: Explicitly casts `u.email` to `TEXT` in `get_all_user_details`
+  to resolve "42804: structure of query does not match function result type" error.
 
   This migration will:
   1.  **Drop Dependent RLS Policies**: All RLS policies that depend on the
@@ -19,6 +25,7 @@
       - Roles are assumed to be stored in uppercase (e.g., 'ADMIN', 'MEMBER').
   4.  **Recreate `public.get_all_user_details()`**:
       - The `RETURNS TABLE` definition is updated to specify `role TEXT`.
+      - **`u.email` is cast to `TEXT`**.
       - Internal logic uses TEXT for role comparisons.
   5.  **Recreate RLS Policies**: All previously dropped RLS policies are recreated.
       They will now use the new `get_current_user_role()` which returns TEXT.
@@ -48,14 +55,12 @@ DROP POLICY IF EXISTS "Moderators and admins can update reports" ON public.forum
 DROP POLICY IF EXISTS "Allow admins to insert categories" ON public.forum_categories;
 DROP POLICY IF EXISTS "Allow admins to update categories" ON public.forum_categories;
 DROP POLICY IF EXISTS "Allow admins to delete categories" ON public.forum_categories;
--- From an older migration, ensure it's dropped if it exists by a similar name
 DROP POLICY IF EXISTS "Admins can manage all categories." ON public.forum_categories;
 
 
 -- On public.forum_posts
 DROP POLICY IF EXISTS "Allow admins and moderators to update any post" ON public.forum_posts;
 DROP POLICY IF EXISTS "Allow admins and moderators to delete any post" ON public.forum_posts;
--- From an older migration, ensure it's dropped if it exists by a similar name
 DROP POLICY IF EXISTS "Admins can manage all posts." ON public.forum_posts;
 
 
@@ -76,7 +81,7 @@ DROP FUNCTION IF EXISTS public.get_all_user_details();
 DROP FUNCTION IF EXISTS public.get_current_user_role();
 
 -- Step 3: Recreate get_current_user_role to return TEXT
-CREATE FUNCTION public.get_current_user_role()
+CREATE OR REPLACE FUNCTION public.get_current_user_role()
 RETURNS text
 LANGUAGE sql
 STABLE
@@ -89,10 +94,10 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_current_user_role() TO authenticated;
 
 -- Step 4: Recreate get_all_user_details ensuring its role column and internal logic use TEXT
-CREATE FUNCTION public.get_all_user_details()
+CREATE OR REPLACE FUNCTION public.get_all_user_details()
 RETURNS TABLE (
   id uuid,
-  email text,
+  email text, -- Expected type
   created_at timestamptz,
   username text,
   full_name text,
@@ -116,7 +121,7 @@ BEGIN
   RETURN QUERY
   SELECT
     u.id,
-    u.email,
+    u.email::text, -- Cast auth.users.email (varchar) to TEXT
     u.created_at,
     p.username,
     p.full_name,

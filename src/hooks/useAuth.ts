@@ -2,6 +2,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Profile, useUser } from '@/contexts/UserContext';
+// Session from @supabase/supabase-js is implicitly used via UserContext's session state
 import { usePermissions } from './usePermissions';
 import { supabase } from '@/lib/supabaseClient';
 import { Permission }  from '@/constants/permissions';
@@ -18,17 +19,36 @@ export const useAuth = () => {
     user: contextUser, 
     profile: contextProfile, 
     isLoadingAuth: contextIsLoadingAuth,
-    session: contextSession
+    session: contextSession // Full Session object from UserContext
   } = useUser();
+
+  // Log received context values
+  console.log('[useAuth] Received from UserContext:', {
+    contextUserExists: !!contextUser,
+    contextUserId: contextUser?.id,
+    contextProfileExists: !!contextProfile,
+    contextProfileUsername: contextProfile?.username,
+    contextSessionExists: !!contextSession,
+    contextSessionUserId: contextSession?.user?.id,
+    contextIsLoadingAuth
+  });
   
   const { can, isLoading: permissionsLoading, currentRole } = usePermissions();
 
   const isLoading = contextIsLoadingAuth || permissionsLoading;
 
-  const authUser: AuthUser | null = contextUser 
-    ? { ...contextUser, profile: contextProfile } 
+  // Changed: Construct authUser directly from contextSession.user
+  // This makes authUser dependent on the user object within the session state from UserContext
+  const authUser: AuthUser | null = contextSession?.user 
+    ? { ...contextSession.user, profile: contextProfile } 
     : null;
-  const profile: Profile | null = contextProfile;
+  
+  console.log('[useAuth] Constructed authUser:', {
+    authUserExists: !!authUser,
+    authUserId: authUser?.id,
+    authUserProfileUsername: authUser?.profile?.username,
+    derivedFrom: contextSession?.user ? 'contextSession.user' : 'null'
+  });
 
   const signIn = async (email?: string, password?: string) => {
     if (!email || !password) {
@@ -85,34 +105,25 @@ export const useAuth = () => {
     }
   };
 
-  // Flag to show moderation tools link
-  const canModerate = !isLoading && !!profile && can(Permission.ACCESS_MODERATION_TOOLS);
+  const canModerate = !isLoading && !!contextProfile && can(Permission.ACCESS_MODERATION_TOOLS);
   
-  // Flag to show User and Section management links in AdminLayout
-  // An ADMIN should have MANAGE_USERS or MANAGE_SECTIONS. SUPER_ADMIN has all.
-  const canAdminister = !isLoading && !!profile && 
+  const canAdminister = !isLoading && !!contextProfile && 
     (
       can(Permission.MANAGE_USERS) || 
       can(Permission.MANAGE_SECTIONS) ||
-      currentRole === 'SUPER_ADMIN' // SUPER_ADMIN can always administer
+      currentRole === 'SUPER_ADMIN'
     );
   
-  const sessionForAdminRoute = authUser; 
-  const profileForAdminRoute = profile;
-  const isLoadingAuthForAdminRoute = isLoading; 
-  const roleForAdminRoute = profile?.role;
-
   return {
-    session: sessionForAdminRoute, 
-    profile: profileForAdminRoute,
-    isLoadingAuth: isLoadingAuthForAdminRoute, 
-    role: roleForAdminRoute, 
+    session: authUser, // PostDetailPage receives this as `authUser`
+    profile: contextProfile, // PostDetailPage receives this as `profile`
+    isLoadingAuth: isLoading, 
+    role: contextProfile?.role, 
     signIn,
     signUp,
     signOut,
     canModerate,
-    canAdminister, // Corrected name
-    // Raw values for debugging (can be removed later):
+    canAdminister,
     _rawContextUser: contextUser,
     _rawContextProfile: contextProfile,
     _rawContextIsLoadingAuth: contextIsLoadingAuth,

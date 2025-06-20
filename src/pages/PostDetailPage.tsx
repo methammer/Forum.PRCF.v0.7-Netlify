@@ -9,7 +9,7 @@ import { Loader2, AlertTriangle, ArrowLeft, MessageSquare, CalendarDays, UserCir
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, AuthUser } from '@/hooks/useAuth';
 import ReportModal from '@/components/modals/ReportModal';
 import {
   AlertDialog,
@@ -37,7 +37,7 @@ interface PostDetails {
   category_slug: string;
   is_deleted: boolean;
   deleted_at: string | null;
-  is_published: boolean; // Added for completeness, though main logic here is about deletion
+  is_published: boolean;
 }
 
 interface Reply {
@@ -57,7 +57,9 @@ const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { authUser, canModerate, isLoading: authLoading } = useAuth();
+
+  const { session: authUser, profile, isLoadingAuth: authLoading, canModerate } = useAuth();
+
   const [post, setPost] = useState<PostDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,13 +71,15 @@ const PostDetailPage = () => {
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportContentType, setReportContentType] = useState<'post' | 'reply'>('post'); // Default to post
+  const [reportContentType, setReportContentType] = useState<'post' | 'reply'>('post');
   const [reportContentId, setReportContentId] = useState('');
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleteContentType, setDeleteContentType] = useState<'post' | 'reply' | null>(null);
   const [deleteContentId, setDeleteContentId] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+
+  console.log(`[PostDetailPage] Render. AuthUser ID: ${authUser?.id ?? 'null'}, Profile ID: ${profile?.id ?? 'null'}, AuthLoading: ${authLoading}, CanModerate: ${canModerate}, Post Loaded: ${!!post}, Post Deleted: ${post?.is_deleted ?? 'N/A'}`);
 
   const fetchPostAndReplies = useCallback(async () => {
     if (!postId) {
@@ -91,7 +95,6 @@ const PostDetailPage = () => {
     setRepliesError(null);
 
     try {
-      // Fetch post details
       const { data: postData, error: postRpcError } = await supabase
         .rpc('get_post_details_with_author', { p_post_id: postId })
         .single();
@@ -100,7 +103,6 @@ const PostDetailPage = () => {
       if (!postData) throw new Error("Sujet non trouvé ou vous n'avez pas la permission de le voir.");
       setPost(postData as PostDetails);
 
-      // Fetch replies
       const { data: repliesData, error: repliesRpcError } = await supabase
         .rpc('get_post_replies_with_author', { p_post_id: postId });
 
@@ -111,7 +113,7 @@ const PostDetailPage = () => {
       console.error('Error fetching post details or replies:', err);
       const errorMessage = err.message || 'Impossible de charger les données du sujet.';
       setError(errorMessage);
-      setRepliesError(errorMessage); // Can show a combined error or separate
+      setRepliesError(errorMessage);
     } finally {
       setLoading(false);
       setRepliesLoading(false);
@@ -128,17 +130,20 @@ const PostDetailPage = () => {
   };
 
   const handleAddReply = async () => {
+    console.log(`[handleAddReply] Start. AuthUser ID from state: ${authUser?.id ?? 'null'}, Profile ID from state: ${profile?.id ?? 'null'}, Content: "${newReplyContent}"`);
+
     if (!newReplyContent.trim()) {
       toast({ title: "Erreur", description: "Le contenu de la réponse ne peut pas être vide.", variant: "destructive" });
       return;
     }
-    if (!authUser) {
-      toast({ title: "Authentification requise", description: "Vous devez être connecté pour répondre.", variant: "destructive" });
+    if (!authUser || !authUser.id) {
+      toast({ title: "Authentification requise", description: "Session utilisateur invalide ou manquante. Veuillez vous reconnecter.", variant: "destructive" });
+      console.error('[handleAddReply] authUser is null, or authUser.id is missing before submitting reply. authUser (from state):', authUser);
       navigate('/connexion');
       return;
     }
-    if (!post || post.is_deleted && !canModerate) {
-        toast({ title: "Action impossible", description: "Vous ne pouvez pas répondre à un sujet supprimé.", variant: "destructive" });
+    if (!post || (post.is_deleted && !canModerate)) {
+        toast({ title: "Action impossible", description: "Vous ne pouvez pas répondre à un sujet supprimé ou inexistant.", variant: "destructive" });
         return;
     }
 
@@ -152,31 +157,35 @@ const PostDetailPage = () => {
           content: newReplyContent,
         })
         .select(`
-          *,
-          author:profiles (username, avatar_url)
-        `)
+          id, content, created_at, updated_at, user_id, parent_reply_id,
+          author:profiles!user_id(username, avatar_url)
+        `) 
         .single();
 
       if (error) throw error;
+      
+      if (!data) throw new Error("La création de la réponse a échoué et n'a retourné aucune donnée.");
+
+      const rawData = data as any;
 
       const newReplyData: Reply = {
-        reply_id: data.id, // Supabase returns 'id' for the new record
-        reply_content: data.content,
-        reply_created_at: data.created_at,
-        reply_updated_at: data.updated_at,
-        reply_user_id: data.user_id,
-        author_username: data.author?.username || null,
-        author_avatar_url: data.author?.avatar_url || null,
-        parent_reply_id: data.parent_reply_id || null,
-        is_deleted: data.is_deleted || false,
-        deleted_at: data.deleted_at || null,
+        reply_id: rawData.id, 
+        reply_content: rawData.content,
+        reply_created_at: rawData.created_at,
+        reply_updated_at: rawData.updated_at,
+        reply_user_id: rawData.user_id,
+        author_username: rawData.author?.username || null,
+        author_avatar_url: rawData.author?.avatar_url || null,
+        parent_reply_id: rawData.parent_reply_id || null,
+        is_deleted: rawData.is_deleted ?? false, 
+        deleted_at: rawData.deleted_at ?? null, 
       };
       
       setReplies(prevReplies => [...prevReplies, newReplyData]);
       setNewReplyContent('');
       toast({ title: "Succès", description: "Votre réponse a été ajoutée.", className: "bg-green-500 text-white dark:bg-green-700" });
     } catch (err: any) {
-      console.error('Error adding reply:', err);
+      console.error('[handleAddReply] Error adding reply:', err);
       toast({ title: "Erreur", description: err.message || "Impossible d'ajouter la réponse.", variant: "destructive" });
     } finally {
       setIsSubmittingReply(false);
@@ -184,7 +193,7 @@ const PostDetailPage = () => {
   };
 
   const openReportModalHandler = (type: 'post' | 'reply', id: string) => {
-    if (!authUser) {
+    if (!authUser || !authUser.id) { 
       toast({ title: "Authentification requise", description: "Vous devez être connecté pour signaler.", variant: "destructive" });
       navigate('/connexion');
       return;
@@ -204,7 +213,7 @@ const PostDetailPage = () => {
   const confirmDeleteContent = async () => {
     if (!canModerate || !deleteContentType || !deleteContentId) return;
 
-    setIsSubmittingReply(true); // Reuse for loading state
+    setIsSubmittingReply(true);
     try {
       const { error } = await supabase.rpc('soft_delete_content', {
         p_content_type: deleteContentType,
@@ -219,10 +228,7 @@ const PostDetailPage = () => {
         description: `Le ${deleteContentType === 'post' ? 'sujet' : 'message'} a été marqué comme supprimé.`,
         className: "bg-orange-500 text-white dark:bg-orange-700",
       });
-
-      // Refresh data to get updated states
       fetchPostAndReplies(); 
-
     } catch (err: any) {
       console.error('Error deleting content:', err);
       toast({ title: "Erreur de suppression", description: err.message || "Impossible de supprimer le contenu.", variant: "destructive" });
@@ -233,6 +239,10 @@ const PostDetailPage = () => {
       setDeleteContentType(null);
     }
   };
+  
+  if (post) {
+    console.log(`[PostDetailPage] Reply section conditions. AuthUser ID from state: ${authUser?.id ?? 'null'}, AuthLoading: ${authLoading}, CanModerate: ${canModerate}, Post Deleted: ${post.is_deleted}`);
+  }
 
   if (authLoading || loading) {
     return (
@@ -275,6 +285,9 @@ const PostDetailPage = () => {
       </div>
     );
   }
+
+  const showLoginPrompt = (!post.is_deleted || canModerate) && (!authUser || !authUser.id) && !authLoading;
+  const showReplyForm = (!post.is_deleted || canModerate) && authUser && authUser.id;
 
   if (post.is_deleted && !canModerate) {
     return (
@@ -330,7 +343,7 @@ const PostDetailPage = () => {
             )}
           </div>
            <div className="mt-2 flex space-x-2">
-            {authUser && authUser.id !== post.post_user_id && !post.is_deleted && (
+            {authUser && authUser.id && authUser.id !== post.post_user_id && !post.is_deleted && (
               <Button variant="ghost" size="sm" onClick={() => openReportModalHandler('post', post.post_id)} className="text-xs text-gray-500 hover:text-red-600">
                 <Flag className="mr-1 h-3 w-3" /> Signaler le sujet
               </Button>
@@ -369,7 +382,7 @@ const PostDetailPage = () => {
             <div className="text-center text-gray-500 dark:text-gray-400 py-10">
                 <MessageSquare className="mx-auto h-12 w-12 mb-2" />
                 <p>Aucune réponse pour le moment.</p>
-                {!post.is_deleted && authUser && <p className="text-sm">Soyez le premier à répondre !</p>}
+                {!post.is_deleted && authUser && authUser.id && <p className="text-sm">Soyez le premier à répondre !</p>}
             </div>
         )}
         
@@ -404,7 +417,7 @@ const PostDetailPage = () => {
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2 items-end">
-                      {authUser && authUser.id !== reply.reply_user_id && !reply.is_deleted && (
+                      {authUser && authUser.id && authUser.id !== reply.reply_user_id && !reply.is_deleted && (
                         <Button variant="ghost" size="sm" onClick={() => openReportModalHandler('reply', reply.reply_id)} className="text-xs text-gray-500 hover:text-red-600 p-1">
                           <Flag className="mr-1 h-3 w-3" /> Signaler
                         </Button>
@@ -429,7 +442,7 @@ const PostDetailPage = () => {
           </div>
         )}
 
-        {(!post.is_deleted || canModerate) && authUser && (
+        {showReplyForm && (
           <Card className="dark:bg-gray-800/70">
             <CardHeader>
               <CardTitle className="text-lg dark:text-white">Ajouter une réponse</CardTitle>
@@ -454,7 +467,7 @@ const PostDetailPage = () => {
             </CardContent>
           </Card>
         )}
-        {(!post.is_deleted || canModerate) && !authUser && !authLoading && (
+        {showLoginPrompt && (
             <Card className="dark:bg-gray-800/70">
                 <CardHeader>
                     <CardTitle className="text-lg dark:text-white">Participer à la discussion</CardTitle>
@@ -494,7 +507,7 @@ const PostDetailPage = () => {
             <AlertDialogAction
               onClick={confirmDeleteContent}
               className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={isSubmittingReply} // Reusing this state for loading
+              disabled={isSubmittingReply}
             >
               {isSubmittingReply ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Confirmer la suppression
