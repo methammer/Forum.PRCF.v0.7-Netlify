@@ -10,7 +10,7 @@
     import { Badge } from "@/components/ui/badge";
     import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
     import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-    import { ShieldAlert, Search, Filter, Loader2, AlertTriangle, Eye, CheckCircle, XCircle, Trash2, MoreHorizontal, RotateCcw, ArchiveRestore } from "lucide-react";
+    import { ShieldAlert, Search, Filter, Loader2, AlertTriangle, Eye, CheckCircle, XCircle, Trash2, MoreHorizontal, RotateCcw, ArchiveRestore, AlertOctagon } from "lucide-react";
     import { format } from 'date-fns';
     import { fr } from 'date-fns/locale';
     import {
@@ -72,6 +72,9 @@
 
       const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
       const [restoreContentInfo, setRestoreContentInfo] = useState<{type: 'post' | 'reply', id: string} | null>(null);
+
+      const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] = useState(false);
+      const [permanentDeleteContentInfo, setPermanentDeleteContentInfo] = useState<{type: 'post' | 'reply', id: string} | null>(null);
 
 
       const fetchReportedItems = useCallback(async () => {
@@ -149,11 +152,11 @@
             p_delete_reason: deleteReason || null,
           });
           if (error) throw error;
-          toast({ title: "Contenu supprimé", description: "Le contenu a été marqué comme supprimé et le signalement résolu.", className: "bg-orange-500 text-white" });
+          toast({ title: "Contenu supprimé (soft)", description: "Le contenu a été marqué comme supprimé et le signalement résolu.", className: "bg-orange-500 text-white" });
           fetchReportedItems(); 
-          fetchSoftDeletedItems(); // Refresh soft-deleted list
+          fetchSoftDeletedItems(); 
         } catch (err: any) {
-          toast({ title: "Erreur de suppression", description: err.message || "Impossible de supprimer le contenu.", variant: "destructive" });
+          toast({ title: "Erreur de suppression (soft)", description: err.message || "Impossible de supprimer le contenu.", variant: "destructive" });
         } finally {
           setIsDeleteConfirmOpen(false);
           setDeleteContentInfo(null);
@@ -174,8 +177,8 @@
           });
           if (error) throw error;
           toast({ title: "Contenu restauré", description: "Le contenu a été restauré avec succès.", className: "bg-green-500 text-white" });
-          fetchSoftDeletedItems(); // Refresh this list
-          fetchReportedItems(); // Reports might have changed status or new ones might appear if content is visible again
+          fetchSoftDeletedItems(); 
+          fetchReportedItems(); 
         } catch (err: any) {
           toast({ title: "Erreur de restauration", description: err.message || "Impossible de restaurer le contenu.", variant: "destructive" });
         } finally {
@@ -183,6 +186,32 @@
           setRestoreContentInfo(null);
         }
       };
+
+      const openPermanentDeleteConfirmation = (type: 'post' | 'reply', id: string) => {
+        setPermanentDeleteContentInfo({ type, id });
+        setIsPermanentDeleteConfirmOpen(true);
+      };
+
+      const confirmPermanentDeleteContent = async () => {
+        if (!permanentDeleteContentInfo) return;
+        try {
+          const { error } = await supabase.rpc('permanently_delete_content', {
+            p_content_type: permanentDeleteContentInfo.type,
+            p_content_id: permanentDeleteContentInfo.id,
+          });
+          if (error) throw error;
+          toast({ title: "Contenu supprimé définitivement", description: "Le contenu a été supprimé de manière permanente.", className: "bg-red-600 text-white" });
+          fetchSoftDeletedItems(); // Refresh this list
+          // Potentially refresh reported items too, if any reports were tied to this now non-existent content
+          fetchReportedItems(); 
+        } catch (err: any) {
+          toast({ title: "Erreur de suppression définitive", description: err.message || "Impossible de supprimer définitivement le contenu.", variant: "destructive" });
+        } finally {
+          setIsPermanentDeleteConfirmOpen(false);
+          setPermanentDeleteContentInfo(null);
+        }
+      };
+
 
       const getReportedContentLink = (item: ReportedItem) => {
         if (item.reported_content_type === 'post') {
@@ -357,7 +386,7 @@
                                 onClick={() => openDeleteConfirmation(item.reported_content_type, item.reported_content_id, item.report_id)}
                                 className="dark:text-orange-400 dark:hover:bg-gray-700 focus:bg-orange-100 dark:focus:bg-orange-800"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" /> Supprimer Contenu Signalé
+                                <Trash2 className="mr-2 h-4 w-4" /> Supprimer Contenu Signalé (Soft)
                               </DropdownMenuItem>
                                <DropdownMenuItem 
                                 onClick={() => handleUpdateReportStatus(item.report_id, 'RESOLVED_REJECTED')}
@@ -448,7 +477,7 @@
                         <TableCell className="dark:text-gray-300 text-xs" title={item.deletion_reason || ''}>
                           {item.deletion_reason ? (item.deletion_reason.substring(0,50) + (item.deletion_reason.length > 50 ? '...' : '')) : 'N/A'}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right space-x-2">
                            <Button 
                             variant="outline" 
                             size="sm"
@@ -456,6 +485,14 @@
                             className="dark:text-green-400 dark:border-green-600 dark:hover:bg-green-700 dark:hover:text-green-300"
                           >
                             <RotateCcw className="mr-2 h-4 w-4" /> Restaurer
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => openPermanentDeleteConfirmation(item.content_type, item.content_id)}
+                            className="dark:bg-red-700 dark:hover:bg-red-800"
+                          >
+                            <AlertOctagon className="mr-2 h-4 w-4" /> Supp. Déf.
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -469,9 +506,9 @@
           <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
             <AlertDialogContent className="dark:bg-gray-800">
               <AlertDialogHeader>
-                <AlertDialogTitle className="dark:text-white">Confirmer la suppression du contenu</AlertDialogTitle>
+                <AlertDialogTitle className="dark:text-white">Confirmer la suppression (soft) du contenu</AlertDialogTitle>
                 <AlertDialogDescription className="dark:text-gray-300">
-                  Êtes-vous sûr de vouloir supprimer ce contenu ? Cela le masquera pour les utilisateurs et résoudra les signalements associés.
+                  Êtes-vous sûr de vouloir masquer ce contenu ? Cela le rendra invisible pour les utilisateurs et résoudra les signalements associés.
                   <Textarea
                     value={deleteReason}
                     onChange={(e) => setDeleteReason(e.target.value)}
@@ -484,9 +521,9 @@
                 <AlertDialogCancel className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">Annuler</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={confirmDeleteContent}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  Confirmer la suppression
+                  Confirmer la suppression (soft)
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -507,6 +544,31 @@
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
                   Confirmer la restauration
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={isPermanentDeleteConfirmOpen} onOpenChange={setIsPermanentDeleteConfirmOpen}>
+            <AlertDialogContent className="dark:bg-gray-800">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="dark:text-white flex items-center">
+                  <AlertOctagon className="mr-2 h-6 w-6 text-red-500" />
+                  Confirmer la suppression DÉFINITIVE
+                </AlertDialogTitle>
+                <AlertDialogDescription className="dark:text-gray-300">
+                  <p className="font-semibold text-red-400">ATTENTION : Cette action est IRRÉVERSIBLE.</p>
+                  <p>Le contenu sera physiquement supprimé de la base de données, ainsi que tous les signalements associés. Il ne pourra pas être récupéré.</p>
+                  <p className="mt-2">Êtes-vous absolument sûr de vouloir continuer ?</p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={confirmPermanentDeleteContent}
+                  className="bg-red-700 hover:bg-red-800 text-white"
+                >
+                  Oui, supprimer définitivement
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
