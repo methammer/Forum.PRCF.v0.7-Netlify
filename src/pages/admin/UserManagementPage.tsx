@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabaseClient";
-import { Users, Loader2, ShieldCheck, ShieldAlert, UserCog, Trash2, MoreVertical } from "lucide-react";
+import { Users, Loader2, ShieldCheck, ShieldAlert, UserCog, Trash2, MoreVertical, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,8 @@ import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 import { EditUserDialog } from "@/components/admin/EditUserDialog";
 import { toast } from '@/hooks/use-toast';
 import { useUser } from "@/contexts/UserContext";
+import { usePermissions } from "@/hooks/usePermissions"; // Import usePermissions
+import { Permission } from "@/constants/permissions"; // Import Permission enum
 
 export type UserProfile = {
   id: string;
@@ -26,7 +28,7 @@ export type UserProfile = {
   full_name: string | null;
   avatar_url: string | null;
   status: 'pending_approval' | 'approved' | 'rejected' | null;
-  role: 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN' | null; // Changed to uppercase
+  role: 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN' | null;
 };
 
 const UserManagementPage = () => {
@@ -38,8 +40,23 @@ const UserManagementPage = () => {
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserProfile | null>(null);
   
   const { user: contextUser, profile: contextProfile, isLoadingAuth: isAuthLoading } = useUser();
+  const { can, currentRole, isLoading: permissionsLoading } = usePermissions(); // Use permissions hook
+
+  const canViewUserList = can(Permission.VIEW_USER_LIST);
+  const canCreateUser = can(Permission.CREATE_USER);
+  const canEditUserProfile = can(Permission.EDIT_USER_PROFILE);
+  const canChangeUserRole = can(Permission.CHANGE_USER_ROLE);
+  const canApproveUser = can(Permission.APPROVE_USER_REGISTRATION);
+  const canDeleteUser = can(Permission.DELETE_USER);
+
 
   const fetchUsers = useCallback(async () => {
+    if (!canViewUserList && !permissionsLoading) { // Check permission before fetching
+      setError("Accès refusé. Vous n'avez pas la permission de voir la liste des utilisateurs.");
+      setIsLoading(false);
+      setUsers([]);
+      return;
+    }
     console.log("UserManagementPage: fetchUsers called.");
     setIsLoading(true);
     setError(null);
@@ -63,41 +80,35 @@ const UserManagementPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [canViewUserList, permissionsLoading]); // Add dependencies
 
   useEffect(() => {
-    console.log("UserManagementPage: useEffect triggered. isAuthLoading:", isAuthLoading, "ContextUser:", !!contextUser, "ContextProfile Role:", contextProfile?.role);
-    if (!isAuthLoading && contextUser && contextProfile) {
-      // Use uppercase for role checks
-      if (contextProfile.role === 'ADMIN' || contextProfile.role === 'SUPER_ADMIN') {
-        console.log("UserManagementPage: Admin/SuperAdmin authenticated, calling fetchUsers.");
+    console.log("UserManagementPage: useEffect triggered. isAuthLoading:", isAuthLoading, "permissionsLoading:", permissionsLoading, "canViewUserList:", canViewUserList);
+    if (!isAuthLoading && !permissionsLoading) { // Wait for both auth and permissions to load
+      if (canViewUserList) {
+        console.log("UserManagementPage: User has permission, calling fetchUsers.");
         fetchUsers();
       } else {
-        console.log("UserManagementPage: User not admin/super_admin, access denied. Role was:", contextProfile.role);
+        console.log("UserManagementPage: User does not have permission to view user list.");
         setError("Accès refusé. Vous n'avez pas les permissions nécessaires pour voir cette page.");
         setIsLoading(false);
         setUsers([]);
       }
-    } else if (!isAuthLoading && !contextUser) {
-      console.log("UserManagementPage: User not authenticated.");
-      setError("Veuillez vous connecter pour accéder à cette page.");
-      setIsLoading(false);
-      setUsers([]);
-    } else if (isAuthLoading) {
-      console.log("UserManagementPage: Auth is loading, waiting...");
-      setIsLoading(true);
+    } else if (isAuthLoading || permissionsLoading) {
+      console.log("UserManagementPage: Auth or permissions loading, waiting...");
+      setIsLoading(true); // Keep loading true
     }
-  }, [isAuthLoading, contextUser, contextProfile, fetchUsers]);
+  }, [isAuthLoading, permissionsLoading, canViewUserList, fetchUsers]);
 
 
   const getRoleBadgeVariant = (role: UserProfile['role']) => {
     switch (role) {
-      case 'ADMIN': // Uppercase
-      case 'SUPER_ADMIN': // Uppercase
+      case 'ADMIN':
+      case 'SUPER_ADMIN':
         return 'destructive';
-      case 'MODERATOR': // Uppercase
+      case 'MODERATOR':
         return 'secondary';
-      case 'USER': // Uppercase
+      case 'USER':
       default:
         return 'outline';
     }
@@ -130,6 +141,16 @@ const UserManagementPage = () => {
   };
   
   const handleUserUpdateViaFunction = async (userId: string, updates: Partial<UserProfile>, successMessage: string, actionDescription: string) => {
+    // Permission checks for specific actions are now more granular
+    if (updates.status === 'approved' && !canApproveUser) {
+        toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission d'approuver des utilisateurs.", variant: "destructive" });
+        return;
+    }
+    if (updates.role && !canChangeUserRole) {
+        toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission de changer les rôles.", variant: "destructive" });
+        return;
+    }
+
     try {
       const { data: functionData, error: functionError } = await supabase.functions.invoke('update-user-details-admin', {
         body: { targetUserId: userId, updates },
@@ -157,27 +178,41 @@ const UserManagementPage = () => {
   };
 
   const handleApproveUser = async (userId: string) => {
+    if (!canApproveUser) {
+      toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission d'approuver des utilisateurs.", variant: "destructive" });
+      return;
+    }
     await handleUserUpdateViaFunction(userId, { status: 'approved' }, "Utilisateur approuvé.", "Approuver utilisateur");
   };
 
   const handleChangeRole = async (userId: string, newRole: UserProfile['role']) => {
+    if (!canChangeUserRole) {
+        toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission de changer les rôles.", variant: "destructive" });
+        return;
+    }
     if (!newRole) {
         toast({ title: "Erreur", description: "Nouveau rôle non spécifié.", variant: "destructive" });
         return;
     }
-    // Basic client-side checks (Edge Function will enforce strictly)
-    if (userId === contextUser?.id && contextProfile?.role === 'ADMIN' && newRole !== 'ADMIN') { // Uppercase
-         toast({ title: "Action non autorisée", description: "Les administrateurs ne peuvent pas changer leur propre rôle directement de cette manière.", variant: "destructive" });
+    // Prevent ADMIN from changing their own role or SUPER_ADMIN's role
+    const targetUser = users.find(u => u.id === userId);
+    if (currentRole === 'ADMIN' && (userId === contextUser?.id || targetUser?.role === 'SUPER_ADMIN')) {
+         toast({ title: "Action non autorisée", description: "Les administrateurs ne peuvent pas changer leur propre rôle ou celui d'un Super Admin.", variant: "destructive" });
          return;
     }
-    if (userId === contextUser?.id && contextProfile?.role === 'SUPER_ADMIN' && newRole !== 'SUPER_ADMIN') { // Uppercase
-        toast({ title: "Action non autorisée", description: "Un SUPER_ADMIN ne peut pas changer son propre rôle via ces actions rapides.", variant: "destructive" });
+    // Prevent SUPER_ADMIN from changing their own role to something else via this quick action
+    if (currentRole === 'SUPER_ADMIN' && userId === contextUser?.id && newRole !== 'SUPER_ADMIN') {
+        toast({ title: "Action non autorisée", description: "Un Super Admin ne peut pas changer son propre rôle de cette manière.", variant: "destructive" });
         return;
     }
     await handleUserUpdateViaFunction(userId, { role: newRole }, `Rôle de l'utilisateur mis à jour en ${formatRoleForDisplay(newRole)}.`, `Changer rôle en ${formatRoleForDisplay(newRole)}`);
   };
 
   const handleDeleteUser = async (userId: string, userEmail: string | null) => {
+    if (!canDeleteUser) {
+      toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission de supprimer des utilisateurs.", variant: "destructive" });
+      return;
+    }
     if (contextUser?.id === userId) {
       toast({ title: "Action non autorisée", description: "Vous ne pouvez pas supprimer votre propre compte.", variant: "destructive" });
       return;
@@ -205,11 +240,15 @@ const UserManagementPage = () => {
   };
 
   const openEditDialog = (user: UserProfile) => {
+    if (!canEditUserProfile && user.id !== contextUser?.id /* allow self edit if that's a feature elsewhere */) {
+      toast({ title: "Action non autorisée", description: "Vous n'avez pas la permission de modifier ce profil.", variant: "destructive" });
+      return;
+    }
     setSelectedUserForEdit(user);
     setIsEditUserDialogOpen(true);
   };
 
-  if (isAuthLoading || (isLoading && users.length === 0 && !error) ) { 
+  if (isAuthLoading || permissionsLoading || (isLoading && users.length === 0 && !error) ) { 
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -218,9 +257,30 @@ const UserManagementPage = () => {
     );
   }
 
-  if (error) {
+  if (!canViewUserList && !permissionsLoading) { // Final check after loading
+    return (
+      <div className="container mx-auto py-8 px-4 md:px-6">
+        <Card className="bg-yellow-50 border-yellow-500 dark:bg-yellow-900/30 dark:border-yellow-700">
+          <CardHeader>
+            <div className="flex items-center text-yellow-600 dark:text-yellow-400">
+              <AlertTriangle className="h-6 w-6 mr-2" />
+              <CardTitle>Accès Restreint</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-yellow-700 dark:text-yellow-300">
+              {error || "Vous n'avez pas les permissions nécessaires pour gérer les utilisateurs."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (error && !isLoading) { // Show specific fetch error if permission was granted but fetch failed
     return <p className="text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/30 p-4 rounded-md text-center">{error}</p>;
   }
+
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -233,7 +293,7 @@ const UserManagementPage = () => {
             Visualiser, modifier et gérer les comptes utilisateurs. ({users.length} utilisateurs)
           </p>
         </div>
-        { (contextProfile?.role === 'ADMIN' || contextProfile?.role === 'SUPER_ADMIN') && // Uppercase
+        { canCreateUser &&
           <CreateUserDialog onUserCreated={fetchUsers} />
         }
       </header>
@@ -251,7 +311,7 @@ const UserManagementPage = () => {
         <CardContent>
           {users.length === 0 && !isLoading ? (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              Aucun utilisateur à afficher. Vérifiez les permissions ou réessayez.
+              Aucun utilisateur à afficher.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -269,9 +329,17 @@ const UserManagementPage = () => {
                 <TableBody>
                   {users.map((user) => {
                     const isSelf = user.id === contextUser?.id;
-                    const canAdministerTarget = 
-                        contextProfile?.role === 'SUPER_ADMIN' || // Uppercase
-                        (contextProfile?.role === 'ADMIN' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN'); // Uppercase
+                    // Determine if the current admin can manage the target user
+                    let canManageTargetUser = false;
+                    if (currentRole === 'SUPER_ADMIN' && !isSelf) {
+                        canManageTargetUser = true;
+                    } else if (currentRole === 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN' && !isSelf) {
+                        canManageTargetUser = true;
+                    } else if (currentRole === 'ADMIN' && user.role === 'ADMIN' && !isSelf) {
+                        // Admin can edit other admins but not change their role to super_admin or delete them easily
+                        canManageTargetUser = canEditUserProfile; // Specific permission for edit
+                    }
+
 
                     return (
                     <TableRow key={user.id} className="dark:border-gray-700 hover:dark:bg-gray-700/50">
@@ -296,57 +364,63 @@ const UserManagementPage = () => {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="dark:text-gray-400 dark:hover:bg-gray-700" disabled={!canAdministerTarget && !isSelf}>
+                            <Button variant="ghost" size="icon" className="dark:text-gray-400 dark:hover:bg-gray-700" disabled={!canManageTargetUser && !isSelf && !canEditUserProfile /* Allow self edit if profile page is not the only way */}>
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700">
                             <DropdownMenuLabel className="dark:text-gray-300">Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => openEditDialog(user)} className="dark:text-gray-300 dark:hover:!bg-gray-700" disabled={!canAdministerTarget && !isSelf /* User can edit self via profile page, admin can edit others */}>
-                              <UserCog className="mr-2 h-4 w-4" /> Modifier
-                            </DropdownMenuItem>
-                            {user.status === 'pending_approval' && canAdministerTarget && (
+                            {(canEditUserProfile || (isSelf /* && canEditOwnProfile */)) && 
+                              <DropdownMenuItem onClick={() => openEditDialog(user)} className="dark:text-gray-300 dark:hover:!bg-gray-700">
+                                <UserCog className="mr-2 h-4 w-4" /> Modifier
+                              </DropdownMenuItem>
+                            }
+                            {user.status === 'pending_approval' && canApproveUser && canManageTargetUser && (
                               <DropdownMenuItem onClick={() => handleApproveUser(user.id)} className="dark:text-gray-300 dark:hover:!bg-gray-700">
                                 <ShieldCheck className="mr-2 h-4 w-4" /> Approuver
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator className="dark:bg-gray-700" />
-                            { contextProfile?.role === 'SUPER_ADMIN' && user.role !== 'SUPER_ADMIN' && !isSelf && ( // Uppercase
+                            
+                            {canChangeUserRole && canManageTargetUser && <DropdownMenuSeparator className="dark:bg-gray-700" />}
+
+                            { canChangeUserRole && currentRole === 'SUPER_ADMIN' && user.role !== 'SUPER_ADMIN' && !isSelf && (
                                 <DropdownMenuItem 
-                                    onClick={() => handleChangeRole(user.id, 'SUPER_ADMIN')} // Uppercase
+                                    onClick={() => handleChangeRole(user.id, 'SUPER_ADMIN')}
                                     className="dark:text-gray-300 dark:hover:!bg-gray-700">
                                    <ShieldAlert className="mr-2 h-4 w-4 text-red-500" /> Passer Super Admin
                                 </DropdownMenuItem>
                             )}
-                            { (contextProfile?.role === 'SUPER_ADMIN' || (contextProfile?.role === 'ADMIN' && user.role !== 'SUPER_ADMIN')) && user.role !== 'ADMIN' && !isSelf && ( // Uppercase
+                            { canChangeUserRole && canManageTargetUser && user.role !== 'ADMIN' && (currentRole === 'SUPER_ADMIN' || (currentRole === 'ADMIN' && user.role !== 'SUPER_ADMIN')) && !isSelf && (
                                 <DropdownMenuItem 
-                                    onClick={() => handleChangeRole(user.id, 'ADMIN')} // Uppercase
+                                    onClick={() => handleChangeRole(user.id, 'ADMIN')}
                                     className="dark:text-gray-300 dark:hover:!bg-gray-700">
                                    <ShieldAlert className="mr-2 h-4 w-4 text-orange-500" /> Passer Admin
                                 </DropdownMenuItem>
                             )}
-                            { canAdministerTarget && user.role !== 'MODERATOR' && !isSelf && ( // Uppercase
+                            { canChangeUserRole && canManageTargetUser && user.role !== 'MODERATOR' && !isSelf && (
                                 <DropdownMenuItem 
-                                    onClick={() => handleChangeRole(user.id, 'MODERATOR')} // Uppercase
+                                    onClick={() => handleChangeRole(user.id, 'MODERATOR')}
                                     className="dark:text-gray-300 dark:hover:!bg-gray-700">
                                    <ShieldAlert className="mr-2 h-4 w-4 text-yellow-500" /> Passer Modérateur
                                 </DropdownMenuItem>
                             )}
-                            { canAdministerTarget && user.role !== 'USER' && !isSelf && ( // Uppercase
+                            { canChangeUserRole && canManageTargetUser && user.role !== 'USER' && !isSelf && (
                                 <DropdownMenuItem 
-                                    onClick={() => handleChangeRole(user.id, 'USER')} // Uppercase
+                                    onClick={() => handleChangeRole(user.id, 'USER')}
                                     className="dark:text-gray-300 dark:hover:!bg-gray-700">
                                    <ShieldAlert className="mr-2 h-4 w-4 text-green-500" /> Passer Utilisateur
                                 </DropdownMenuItem>
                             )}
-                            {canAdministerTarget && !isSelf && <DropdownMenuSeparator className="dark:bg-gray-700"/>}
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteUser(user.id, user.email)} 
-                              className="text-red-600 dark:text-red-500 hover:!text-red-700 dark:hover:!text-red-400 dark:hover:!bg-red-700/50"
-                              disabled={isSelf || !canAdministerTarget}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Supprimer
-                            </DropdownMenuItem>
+                            
+                            {canDeleteUser && canManageTargetUser && !isSelf && <DropdownMenuSeparator className="dark:bg-gray-700"/>}
+                            {canDeleteUser && canManageTargetUser && !isSelf &&
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteUser(user.id, user.email)} 
+                                className="text-red-600 dark:text-red-500 hover:!text-red-700 dark:hover:!text-red-400 dark:hover:!bg-red-700/50"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Supprimer
+                              </DropdownMenuItem>
+                            }
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -364,7 +438,7 @@ const UserManagementPage = () => {
         onOpenChange={setIsEditUserDialogOpen} 
         onUserUpdated={() => {
           fetchUsers();
-          setSelectedUserForEdit(null); // Clear selected user after update
+          setSelectedUserForEdit(null); 
         }} 
       />
     </div>

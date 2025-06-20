@@ -1,47 +1,122 @@
-import { useUser, Profile } from '@/contexts/UserContext';
-import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { Profile, useUser } from '@/contexts/UserContext';
+import { usePermissions } from './usePermissions';
+import { supabase } from '@/lib/supabaseClient';
+import { Permission }  from '@/constants/permissions';
 
-interface AuthInfo {
-  authUser: SupabaseUser | null;
-  profile: Profile | null;
-  session: Session | null;
-  isLoadingAuth: boolean;
-  role: Profile['role'] | null;
-  isUser: boolean;
-  isModerator: boolean;
-  isAdmin: boolean;
-  isSuperAdmin: boolean;
-  canModerate: boolean; // MODERATOR, ADMIN, SUPER_ADMIN
-  canAdminister: boolean; // ADMIN, SUPER_ADMIN
-  signOut: () => Promise<void>;
+export interface AuthUser extends SupabaseUser {
+  profile?: Profile | null;
 }
 
-export const useAuth = (): AuthInfo => {
-  const context = useUser(); // context already handles the uninitialized sentinel
+export const useAuth = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const { 
+    user: contextUser, 
+    profile: contextProfile, 
+    isLoadingAuth: contextIsLoadingAuth,
+    session: contextSession
+  } = useUser();
+  
+  const { can, isLoading: permissionsLoading, currentRole } = usePermissions();
 
-  const role = context.profile?.role ?? null;
+  const isLoading = contextIsLoadingAuth || permissionsLoading;
 
-  // All role checks should use uppercase as per the Profile type and database enum
-  const isUser = role === 'USER';
-  const isModerator = role === 'MODERATOR';
-  const isAdmin = role === 'ADMIN';
-  const isSuperAdmin = role === 'SUPER_ADMIN';
+  const authUser: AuthUser | null = contextUser 
+    ? { ...contextUser, profile: contextProfile } 
+    : null;
+  const profile: Profile | null = contextProfile;
 
-  const canModerate = role === 'MODERATOR' || role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const canAdminister = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const signIn = async (email?: string, password?: string) => {
+    if (!email || !password) {
+      toast({ title: "Erreur", description: "Email et mot de passe requis.", variant: "destructive" });
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast({ title: "Succès", description: "Connexion réussie !", className: "bg-green-500 text-white" });
+      navigate('/');
+    } catch (error: any) {
+      toast({ title: "Erreur de connexion", description: error.message || "Identifiants incorrects.", variant: "destructive" });
+    }
+  };
+
+  const signUp = async (email?: string, password?: string, username?: string) => {
+    if (!email || !password || !username) {
+      toast({ title: "Erreur", description: "Email, mot de passe et nom d'utilisateur requis.", variant: "destructive" });
+      return;
+    }
+    try {
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error("Aucun utilisateur retourné après l'inscription.");
+
+      toast({
+        title: "Inscription réussie !",
+        description: "Votre profil est en cours de création. Redirection...",
+        className: "bg-green-500 text-white",
+      });
+    } catch (error: any) {
+      toast({ title: "Erreur d'inscription", description: error.message || "Impossible de créer le compte.", variant: "destructive" });
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast({ title: "Déconnexion", description: "Vous avez été déconnecté." });
+      navigate('/connexion');
+    } catch (error: any) {
+      toast({ title: "Erreur de déconnexion", description: error.message, variant: "destructive" });
+    }
+  };
+
+  // Flag to show moderation tools link
+  const canModerate = !isLoading && !!profile && can(Permission.ACCESS_MODERATION_TOOLS);
+  
+  // Flag to show User and Section management links in AdminLayout
+  // An ADMIN should have MANAGE_USERS or MANAGE_SECTIONS. SUPER_ADMIN has all.
+  const canAdminister = !isLoading && !!profile && 
+    (
+      can(Permission.MANAGE_USERS) || 
+      can(Permission.MANAGE_SECTIONS) ||
+      currentRole === 'SUPER_ADMIN' // SUPER_ADMIN can always administer
+    );
+  
+  const sessionForAdminRoute = authUser; 
+  const profileForAdminRoute = profile;
+  const isLoadingAuthForAdminRoute = isLoading; 
+  const roleForAdminRoute = profile?.role;
 
   return {
-    authUser: context.user,
-    profile: context.profile,
-    session: context.session,
-    isLoadingAuth: context.isLoadingAuth,
-    role,
-    isUser,
-    isModerator,
-    isAdmin,
-    isSuperAdmin,
+    session: sessionForAdminRoute, 
+    profile: profileForAdminRoute,
+    isLoadingAuth: isLoadingAuthForAdminRoute, 
+    role: roleForAdminRoute, 
+    signIn,
+    signUp,
+    signOut,
     canModerate,
-    canAdminister,
-    signOut: context.signOut,
+    canAdminister, // Corrected name
+    // Raw values for debugging (can be removed later):
+    _rawContextUser: contextUser,
+    _rawContextProfile: contextProfile,
+    _rawContextIsLoadingAuth: contextIsLoadingAuth,
+    _rawContextSession: contextSession,
+    _rawPermissionsLoading: permissionsLoading,
   };
 };
