@@ -1,4 +1,4 @@
-    /*
+/*
       # Création de la table forum_reports
 
       Cette table stocke les signalements faits par les utilisateurs sur les contenus du forum.

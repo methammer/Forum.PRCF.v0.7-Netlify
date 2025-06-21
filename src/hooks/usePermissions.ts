@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { Permission, RolePermissions, Role } from '@/constants/permissions'; // Ensure this path is correct
+import { Permission, ROLE_PERMISSIONS, Role } from '@/constants/permissions'; // Corrected import name
 
 export const usePermissions = () => {
   const { profile: userProfile, isLoadingAuth } = useUser();
@@ -18,7 +18,7 @@ export const usePermissions = () => {
         return true; 
       }
 
-      const userPermissions = RolePermissions[userProfile.role as Role]; // Cast because role from DB might not be strictly typed yet
+      const userPermissions = ROLE_PERMISSIONS[userProfile.role as Role]; // Corrected usage
       
       if (!userPermissions) {
         console.warn(`No permissions defined for role: ${userProfile.role}`);

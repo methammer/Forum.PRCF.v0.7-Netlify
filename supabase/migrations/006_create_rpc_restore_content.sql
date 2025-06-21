@@ -1,4 +1,4 @@
-    /*
+/*
       # RPC: Restore Content
 
       This migration creates a new RPC function `restore_content`

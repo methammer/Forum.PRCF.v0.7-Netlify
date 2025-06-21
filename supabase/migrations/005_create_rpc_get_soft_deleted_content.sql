@@ -1,4 +1,4 @@
-    /*
+/*
       # RPC: Get Soft-Deleted Content
 
       This migration creates a new RPC function `get_soft_deleted_content`

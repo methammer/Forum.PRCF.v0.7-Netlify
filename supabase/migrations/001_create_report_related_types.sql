@@ -1,4 +1,4 @@
-    /*
+/*
       # Création des types énumérés pour la modération
 
       1. Nouveaux Types Énumérés

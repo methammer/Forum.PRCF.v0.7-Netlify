@@ -1,160 +1,89 @@
 export enum Permission {
-  // General
-  LOGIN = 'login',
-  VIEW_PUBLIC_FORUM = 'view_public_forum',
-  CREATE_PROFILE = 'create_profile',
-  EDIT_OWN_PROFILE = 'edit_own_profile',
-  VIEW_ANY_PROFILE = 'view_any_profile',
+      // User Management
+      VIEW_USER_LIST = "VIEW_USER_LIST",
+      CREATE_USER = "CREATE_USER",
+      EDIT_USER_PROFILE = "EDIT_USER_PROFILE",
+      CHANGE_USER_ROLE = "CHANGE_USER_ROLE",
+      APPROVE_USER_REGISTRATION = "APPROVE_USER_REGISTRATION",
+      DELETE_USER = "DELETE_USER",
+      SEND_PASSWORD_RESET_EMAIL = "SEND_PASSWORD_RESET_EMAIL", // New permission
 
-  // Forum Content (User)
-  CREATE_POST_IN_OPEN_CATEGORY = 'create_post_in_open_category',
-  CREATE_POST_IN_ANY_CATEGORY = 'create_post_in_any_category', // For mods/admins if categories are locked
-  EDIT_OWN_POST = 'edit_own_post',
-  DELETE_OWN_POST = 'delete_own_post',
-  CREATE_COMMENT = 'create_comment',
-  EDIT_OWN_COMMENT = 'edit_own_comment',
-  DELETE_OWN_COMMENT = 'delete_own_comment',
-  REPORT_CONTENT = 'report_content',
+      // Content Moderation
+      VIEW_MODERATION_PANEL = "VIEW_MODERATION_PANEL",
+      SOFT_DELETE_CONTENT = "SOFT_DELETE_CONTENT",
+      RESTORE_CONTENT = "RESTORE_CONTENT",
+      PERMANENTLY_DELETE_CONTENT = "PERMANENTLY_DELETE_CONTENT",
+      VIEW_REPORTS = "VIEW_REPORTS",
+      MANAGE_REPORTS = "MANAGE_REPORTS",
+      EDIT_ANY_POST = "EDIT_ANY_POST",
+      EDIT_ANY_REPLY = "EDIT_ANY_REPLY",
 
-  // Moderation
-  ACCESS_MODERATION_TOOLS = 'access_moderation_tools',
-  VIEW_REPORTED_CONTENT = 'view_reported_content',
-  APPROVE_CONTENT = 'approve_content',
-  REJECT_CONTENT = 'reject_content', // e.g., hide or mark as spam
-  EDIT_ANY_POST = 'edit_any_post',
-  DELETE_ANY_POST = 'delete_any_post',
-  EDIT_ANY_COMMENT = 'edit_any_comment',
-  DELETE_ANY_COMMENT = 'delete_any_comment',
-  WARN_USER = 'warn_user',
-  SUSPEND_USER = 'suspend_user', // Soft ban
-  LOCK_THREAD = 'lock_thread',
-  UNLOCK_THREAD = 'unlock_thread',
-  PIN_THREAD = 'pin_thread',
-  UNPIN_THREAD = 'unpin_thread',
+      // Audit Log
+      VIEW_AUDIT_LOGS = "VIEW_AUDIT_LOGS",
 
-  // Admin
-  ACCESS_ADMIN_DASHBOARD = 'access_admin_dashboard',
-  MANAGE_USERS = 'manage_users', // General permission for user management section
-  VIEW_USER_LIST = 'view_user_list',
-  CREATE_USER = 'create_user',
-  EDIT_USER_PROFILE = 'edit_user_profile', // Admin editing any user
-  CHANGE_USER_ROLE = 'change_user_role',
-  APPROVE_USER_REGISTRATION = 'approve_user_registration',
-  REJECT_USER_REGISTRATION = 'reject_user_registration',
-  DELETE_USER = 'delete_user', // Hard delete user
+      // Forum Management
+      MANAGE_CATEGORIES = "MANAGE_CATEGORIES",
+      MANAGE_TAGS = "MANAGE_TAGS",
+      VIEW_FORUM_SETTINGS = "VIEW_FORUM_SETTINGS",
+      EDIT_FORUM_SETTINGS = "EDIT_FORUM_SETTINGS",
 
-  MANAGE_SECTIONS = 'manage_sections', // General permission for section management
-  CREATE_SECTION = 'create_section', // Forum category/section
-  EDIT_SECTION = 'edit_section',
-  DELETE_SECTION = 'delete_section',
-  REORDER_SECTIONS = 'reorder_sections',
-  LOCK_SECTION_FOR_USERS = 'lock_section_for_users', // Only mods/admins can post
+      // User Actions (related to sanctions)
+      WARN_USER = "WARN_USER",
+      SUSPEND_USER = "SUSPEND_USER",
+      BAN_USER = "BAN_USER",
+      VIEW_USER_SANCTIONS = "VIEW_USER_SANCTIONS", // View a user's sanction history
+      MANAGE_USER_SANCTIONS = "MANAGE_USER_SANCTIONS", // Lift sanctions, etc.
+    }
 
-  MANAGE_SITE_SETTINGS = 'manage_site_settings',
-  VIEW_AUDIT_LOGS = 'view_audit_logs',
+    export type Role = "USER" | "MODERATOR" | "ADMIN" | "SUPER_ADMIN";
 
-  // Super Admin - Has all permissions implicitly
-  SUPER_ADMIN_FULL_ACCESS = 'super_admin_full_access', 
-}
+    export const ROLES: Role[] = ["USER", "MODERATOR", "ADMIN", "SUPER_ADMIN"];
 
-export type Role = 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
+    // Define permissions for each role
+    // SUPER_ADMIN gets all permissions by default in usePermissions hook if not explicitly listed
+    export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+      USER: [],
+      MODERATOR: [
+        Permission.VIEW_MODERATION_PANEL,
+        Permission.SOFT_DELETE_CONTENT,
+        Permission.RESTORE_CONTENT,
+        Permission.VIEW_REPORTS,
+        Permission.MANAGE_REPORTS, // Typically includes changing status
+        Permission.EDIT_ANY_POST, // If moderators can edit content
+        Permission.EDIT_ANY_REPLY, // If moderators can edit content
+        Permission.WARN_USER,
+        Permission.VIEW_USER_SANCTIONS,
+      ],
+      ADMIN: [
+        Permission.VIEW_USER_LIST,
+        Permission.CREATE_USER,
+        Permission.EDIT_USER_PROFILE,
+        Permission.CHANGE_USER_ROLE,
+        Permission.APPROVE_USER_REGISTRATION,
+        Permission.DELETE_USER,
+        Permission.SEND_PASSWORD_RESET_EMAIL, // Grant to ADMIN
 
-export const RolePermissions: Record<Role, Permission[]> = {
-  USER: [
-    Permission.LOGIN,
-    Permission.VIEW_PUBLIC_FORUM,
-    Permission.CREATE_PROFILE,
-    Permission.EDIT_OWN_PROFILE,
-    Permission.VIEW_ANY_PROFILE,
-    Permission.CREATE_POST_IN_OPEN_CATEGORY,
-    Permission.EDIT_OWN_POST,
-    Permission.DELETE_OWN_POST,
-    Permission.CREATE_COMMENT,
-    Permission.EDIT_OWN_COMMENT,
-    Permission.DELETE_OWN_COMMENT,
-    Permission.REPORT_CONTENT,
-  ],
-  MODERATOR: [
-    // Inherits USER permissions implicitly if needed, or list them explicitly
-    // For clarity, let's list some key ones and add moderation specific ones
-    Permission.LOGIN,
-    Permission.VIEW_PUBLIC_FORUM,
-    Permission.EDIT_OWN_PROFILE,
-    Permission.VIEW_ANY_PROFILE,
-    Permission.CREATE_POST_IN_ANY_CATEGORY, // Can post even if locked for users
-    Permission.EDIT_OWN_POST,
-    Permission.DELETE_OWN_POST,
-    Permission.CREATE_COMMENT,
-    Permission.EDIT_OWN_COMMENT,
-    Permission.DELETE_OWN_COMMENT,
-    Permission.REPORT_CONTENT,
+        Permission.VIEW_MODERATION_PANEL,
+        Permission.SOFT_DELETE_CONTENT,
+        Permission.RESTORE_CONTENT,
+        Permission.PERMANENTLY_DELETE_CONTENT,
+        Permission.VIEW_REPORTS,
+        Permission.MANAGE_REPORTS,
+        Permission.EDIT_ANY_POST,
+        Permission.EDIT_ANY_REPLY,
+        
+        Permission.VIEW_AUDIT_LOGS,
 
-    Permission.ACCESS_MODERATION_TOOLS,
-    Permission.VIEW_REPORTED_CONTENT,
-    Permission.APPROVE_CONTENT,
-    Permission.REJECT_CONTENT,
-    Permission.EDIT_ANY_POST,
-    Permission.DELETE_ANY_POST,
-    Permission.EDIT_ANY_COMMENT,
-    Permission.DELETE_ANY_COMMENT,
-    Permission.WARN_USER,
-    Permission.LOCK_THREAD,
-    Permission.UNLOCK_THREAD,
-    Permission.PIN_THREAD,
-    Permission.UNPIN_THREAD,
-  ],
-  ADMIN: [
-    // Inherits MODERATOR permissions implicitly or list explicitly
-    // For clarity, listing key ones and adding admin specific ones
-    Permission.LOGIN,
-    Permission.VIEW_PUBLIC_FORUM,
-    Permission.EDIT_OWN_PROFILE,
-    Permission.VIEW_ANY_PROFILE,
-    Permission.CREATE_POST_IN_ANY_CATEGORY,
-    Permission.EDIT_OWN_POST,
-    Permission.DELETE_OWN_POST,
-    Permission.CREATE_COMMENT,
-    Permission.EDIT_OWN_COMMENT,
-    Permission.DELETE_OWN_COMMENT,
-    Permission.REPORT_CONTENT,
+        Permission.MANAGE_CATEGORIES,
+        Permission.MANAGE_TAGS,
+        Permission.VIEW_FORUM_SETTINGS,
+        Permission.EDIT_FORUM_SETTINGS,
 
-    Permission.ACCESS_MODERATION_TOOLS,
-    Permission.VIEW_REPORTED_CONTENT,
-    Permission.APPROVE_CONTENT,
-    Permission.REJECT_CONTENT,
-    Permission.EDIT_ANY_POST,
-    Permission.DELETE_ANY_POST,
-    Permission.EDIT_ANY_COMMENT,
-    Permission.DELETE_ANY_COMMENT,
-    Permission.WARN_USER,
-    Permission.LOCK_THREAD,
-    Permission.UNLOCK_THREAD,
-    Permission.PIN_THREAD,
-    Permission.UNPIN_THREAD,
-
-    Permission.ACCESS_ADMIN_DASHBOARD,
-    Permission.MANAGE_USERS,
-    Permission.VIEW_USER_LIST,
-    Permission.CREATE_USER,
-    Permission.EDIT_USER_PROFILE,
-    Permission.CHANGE_USER_ROLE,
-    Permission.APPROVE_USER_REGISTRATION,
-    Permission.REJECT_USER_REGISTRATION,
-    Permission.DELETE_USER,
-    
-    Permission.MANAGE_SECTIONS,
-    Permission.CREATE_SECTION,
-    Permission.EDIT_SECTION,
-    Permission.DELETE_SECTION,
-    Permission.REORDER_SECTIONS,
-    Permission.LOCK_SECTION_FOR_USERS,
-
-    Permission.MANAGE_SITE_SETTINGS,
-    Permission.VIEW_AUDIT_LOGS,
-    Permission.SUSPEND_USER, // Admins can suspend
-  ],
-  SUPER_ADMIN: [
-    Permission.SUPER_ADMIN_FULL_ACCESS, // This single permission grants all access in usePermissions hook
-    // No need to list others if SUPER_ADMIN_FULL_ACCESS is handled as granting all
-  ],
-};
+        Permission.WARN_USER,
+        Permission.SUSPEND_USER,
+        Permission.BAN_USER,
+        Permission.VIEW_USER_SANCTIONS,
+        Permission.MANAGE_USER_SANCTIONS,
+      ],
+      SUPER_ADMIN: Object.values(Permission), // Super admin has all permissions
+    };

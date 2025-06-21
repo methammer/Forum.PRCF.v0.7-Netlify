@@ -1,4 +1,4 @@
-    /*
+/*
       # RPC: Permanently Delete Content
 
       This migration creates a new RPC function `permanently_delete_content`

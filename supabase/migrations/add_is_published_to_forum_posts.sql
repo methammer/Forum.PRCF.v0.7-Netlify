@@ -1,4 +1,4 @@
-    /*
+/*
       # Ajout du statut de publication aux messages du forum
 
       Cette migration ajoute un champ `is_published` à la table `forum_posts`

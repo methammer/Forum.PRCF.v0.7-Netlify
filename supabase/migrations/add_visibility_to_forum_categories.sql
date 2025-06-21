@@ -1,4 +1,4 @@
-    /*
+/*
       # Ajout de la colonne visibility à forum_categories
 
       Cette migration ajoute une colonne `visibility` à la table `forum_categories`.
