@@ -15,7 +15,9 @@ import ModerationPage from './pages/admin/ModerationPage';
 import SectionManagementPage from './pages/admin/SectionManagementPage';
 import CategoryPostsPage from './pages/CategoryPostsPage';
 import CreatePostPage from './pages/CreatePostPage';
-import PostDetailPage from './pages/PostDetailPage'; // New import
+import PostDetailPage from './pages/PostDetailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage'; // New import
+import UpdatePasswordPage from './pages/UpdatePasswordPage'; // New import
 import { Toaster } from "@/components/ui/toaster";
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
         {/* Public routes */}
         <Route path="/connexion" element={<LoginPage />} />
         <Route path="/inscription" element={<SignUpPage />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} /> {/* New route */}
+        <Route path="/modifier-mot-de-passe" element={<UpdatePasswordPage />} /> {/* New route */}
 
         {/* Protected routes for regular users */}
         <Route element={<ProtectedRoute />}>
@@ -33,7 +37,7 @@ function App() {
             <Route path="/forum" element={<ForumPage />} />
             <Route path="/forum/categorie/:categorySlug" element={<CategoryPostsPage />} />
             <Route path="/forum/nouveau-sujet/:categorySlug" element={<CreatePostPage />} />
-            <Route path="/forum/sujet/:postId" element={<PostDetailPage />} /> {/* New route */}
+            <Route path="/forum/sujet/:postId" element={<PostDetailPage />} />
             <Route path="/profil/:userId" element={<ProfilePage />} />
             <Route path="/parametre" element={<SettingsPage />} />
           </Route>

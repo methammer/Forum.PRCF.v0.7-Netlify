@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
     } from "@/components/ui/card";
     import { Input } from "@/components/ui/input";
     import { Label } from "@/components/ui/label";
-    import { AlertCircle, LogIn, Info, ChromeIcon } from 'lucide-react'; // Ajout de ChromeIcon pour Google
+    import { AlertCircle, LogIn, Info, ChromeIcon } from 'lucide-react';
 
     const LoginPage = () => {
       const [email, setEmail] = useState('');
@@ -20,7 +20,7 @@ import { useState, useEffect } from 'react';
       const [error, setError] = useState<string | null>(null);
       const [infoMessage, setInfoMessage] = useState<string | null>(null);
       const [loading, setLoading] = useState(false);
-      const [googleLoading, setGoogleLoading] = useState(false); // État de chargement pour Google
+      const [googleLoading, setGoogleLoading] = useState(false);
       const navigate = useNavigate();
       const location = useLocation();
 
@@ -94,7 +94,7 @@ import { useState, useEffect } from 'react';
         const { error: googleError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: `${window.location.origin}/` // Redirige vers la page d'accueil après connexion
+            redirectTo: `${window.location.origin}/`
           }
         });
         if (googleError) {
@@ -102,7 +102,6 @@ import { useState, useEffect } from 'react';
           setError(googleError.message || "Erreur lors de la connexion avec Google.");
           setGoogleLoading(false);
         }
-        // Si pas d'erreur, Supabase gère la redirection. Le chargement s'arrêtera à la redirection.
       };
 
       return (
@@ -184,9 +183,9 @@ import { useState, useEffect } from 'react';
                   S'inscrire ici
                 </Link>
               </p>
-              <a href="#" className="text-sm text-blue-400 hover:text-blue-300 hover:underline">
+              <Link to="/mot-de-passe-oublie" className="text-sm text-blue-400 hover:text-blue-300 hover:underline">
                 Mot de passe oublié ?
-              </a>
+              </Link>
                <p className="text-xs text-center text-slate-500 px-4">
                 L'inscription est soumise à validation par un administrateur.
               </p>
