@@ -139,12 +139,14 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, isOpen, on
   
   const handlePasswordReset = async () => {
     if (!user || !user.email) return;
-    // This would typically involve another Edge Function that uses supabase.auth.admin.generateLink()
-    // or similar, and then an email service to send the link.
-    // For now, it's a placeholder.
+    
+    // Ensure the redirect URL points to the correct page for password update
+    const redirectUrl = `${window.location.origin}/modifier-mot-de-passe`;
+    console.log(`Admin initiated password reset for ${user.email}, redirecting to: ${redirectUrl}`);
+
     try {
         const { data, error } = await supabase.auth.resetPasswordForEmail(user.email, {
-            redirectTo: `${window.location.origin}/update-password`, // Your redirect URL
+            redirectTo: redirectUrl, 
         });
         if (error) throw error;
         toast({
